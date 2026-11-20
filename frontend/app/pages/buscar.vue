@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// Página de búsqueda y listado completo de eventos.
-// Los filtros viven en la URL (/eventos?q=jazz&categoria=conciertos&pagina=2),
+// Página "Buscar": búsqueda y listado completo de eventos.
+// Los filtros viven en la URL (/buscar?q=jazz&categoria=conciertos&pagina=2),
 // así se pueden compartir y el botón "atrás" del navegador funciona.
 import type { EventFilters } from '~/composables/useCatalog'
 
 const route = useRoute()
 const router = useRouter()
-const { eventsPage: text } = useAppConfig()
+const { searchPage: text } = useAppConfig()
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
 

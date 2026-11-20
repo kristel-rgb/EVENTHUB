@@ -8,6 +8,7 @@
 export type Role = 'admin' | 'organizer' | 'attendee'
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'finished'
 export type ReservationStatus = 'confirmed' | 'cancelled'
+export type TicketStatus = 'active' | 'used' | 'cancelled'
 
 /** Referencia mínima a otro documento (por ejemplo, el organizador) */
 export interface DocRef {
@@ -54,6 +55,27 @@ export interface Reservation {
   quantity: number
   status: ReservationStatus
   createdAt: string
+}
+
+/** Entrada digital del usuario: GET /me/tickets */
+export interface TicketItem {
+  _id: string
+  code: string            // código legible, por ejemplo EH-1042
+  status: TicketStatus
+  usedAt: string | null
+  qrValue: string         // texto que va dentro del QR (el backend lo firma)
+  createdAt: string
+  event: {
+    _id: string
+    name: string
+    date: string
+    location: string
+    imageUrl: string | null
+    status: EventStatus
+    category: Category
+  }
+  reservation: { _id: string, quantity: number, createdAt: string }
+  holder: DocRef
 }
 
 /** Respuesta de POST /events/:id/reservations */

@@ -37,3 +37,12 @@ export function formatLongDate(iso: string) {
 export function formatTime(iso: string) {
   return timeFmt.format(new Date(iso))
 }
+
+const partsFmt = new Intl.DateTimeFormat('es-CR', { timeZone: TZ, day: 'numeric', month: 'short', weekday: 'short' })
+
+/** Fecha separada en partes: { day: '28', month: 'nov', weekday: 'sáb' } */
+export function formatDateParts(iso: string) {
+  const parts = partsFmt.formatToParts(new Date(iso))
+  const get = (type: string) => parts.find(p => p.type === type)?.value.replace('.', '') ?? ''
+  return { day: get('day'), month: get('month'), weekday: get('weekday') }
+}

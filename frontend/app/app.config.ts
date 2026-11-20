@@ -14,7 +14,8 @@ export default defineAppConfig({
   },
 
   nav: [
-    { to: '/eventos', label: 'Explorar' },
+    { to: '/', label: 'Inicio' },
+    { to: '/buscar', label: 'Buscar' },
     { to: '/mis-entradas', label: 'Mis entradas' },
     { to: '/organizador', label: 'Organizar un evento' },
   ],
@@ -22,14 +23,15 @@ export default defineAppConfig({
   home: {
     title: { before: 'Encontrá tu próximo', highlight: 'plan', middle: 'antes de que se', tag: 'agote.' },
     lead: 'Conciertos, talleres, ferias y conferencias. Reservá en segundos y llevá tu entrada con QR en el teléfono.',
-    searchPlaceholder: 'Jazz, comedia, Pedregal…',
+    ctaSearch: 'Buscar eventos',
+    ctaTickets: 'Mis entradas',
     categoriesTitle: 'Explorá por categoría',
     upcomingTitle: 'Próximos eventos',
     upcomingCount: 4,
     seeAllLabel: 'Ver todos los eventos',
   },
 
-  eventsPage: {
+  searchPage: {
     title: 'Todos los eventos',
     searchPlaceholder: 'Buscá por nombre, lugar o categoría',
     perPage: 12,
@@ -38,8 +40,19 @@ export default defineAppConfig({
     resetLabel: 'Ver todos los eventos',
   },
 
+  tickets: {
+    title: 'Mis entradas',
+    soonDays: 3, // con 3 días o menos para el evento, la entrada se marca como "Pronto"
+    activeTab: 'Activas',
+    historyTab: 'Historial',
+    emptyActive: 'No tenés entradas activas por ahora.',
+    emptyHistory: 'Todavía no hay entradas en tu historial.',
+    findEvents: 'Buscar eventos',
+    note: 'Válida para un solo ingreso. Presentá el código QR en la entrada del evento.',
+  },
+
   event: {
-    backLabel: 'Volver a eventos',
+    backLabel: 'Volver a buscar',
     buyLabel: 'Comprar entrada',
     freeLabel: 'Reservar gratis',
     soldOutLabel: 'Agotado',

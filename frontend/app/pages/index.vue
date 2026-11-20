@@ -1,16 +1,10 @@
 <script setup lang="ts">
-// Portada: presentación, buscador, categorías y una vista previa de los próximos eventos.
-// El listado completo y los filtros están en /eventos.
+// Portada: presentación, categorías y una vista previa de los próximos eventos.
+// La búsqueda y el listado completo están en /buscar.
 import type { EventFilters } from '~/composables/useCatalog'
 
 useHead({ title: 'Inicio' })
 const { home } = useAppConfig()
-
-const searchText = ref('')
-function search() {
-  const q = searchText.value.trim()
-  navigateTo({ path: '/eventos', query: q ? { q } : {} })
-}
 
 const upcomingFilters = ref<EventFilters>({ page: 1, limit: home.upcomingCount })
 const { data: categories } = await useCategories()
@@ -25,11 +19,14 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
     </h1>
     <div class="hero__side">
       <p class="hero__lead">{{ home.lead }}</p>
-      <form class="search" role="search" @submit.prevent="search">
-        <label for="home-search" class="sr-only">Buscar eventos</label>
-        <input id="home-search" v-model="searchText" type="search" :placeholder="home.searchPlaceholder">
-        <button type="submit" class="btn btn--primary">Buscar</button>
-      </form>
+      <div class="hero__ctas">
+        <NuxtLink to="/buscar" class="btn btn--primary">
+          <Icon name="lucide:search" size="18" /> {{ home.ctaSearch }}
+        </NuxtLink>
+        <NuxtLink to="/mis-entradas" class="btn btn--outline">
+          <Icon name="lucide:ticket" size="18" /> {{ home.ctaTickets }}
+        </NuxtLink>
+      </div>
     </div>
   </section>
 
@@ -39,7 +36,7 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
       <NuxtLink
         v-for="c in categories"
         :key="c._id"
-        :to="{ path: '/eventos', query: { categoria: c.slug } }"
+        :to="{ path: '/buscar', query: { categoria: c.slug } }"
         class="cat"
         :style="{ background: eventPoster(c.slug).bg, color: eventPoster(c.slug).ink }"
       >
@@ -52,7 +49,7 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
   <section v-if="!error && upcoming?.items.length" class="container block" aria-labelledby="upcoming-title">
     <div class="block__head">
       <h2 id="upcoming-title" class="block__title">{{ home.upcomingTitle }}</h2>
-      <NuxtLink to="/eventos" class="block__more">
+      <NuxtLink to="/buscar" class="block__more">
         {{ home.seeAllLabel }} <Icon name="lucide:arrow-right" size="16" />
       </NuxtLink>
     </div>
@@ -73,11 +70,8 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
 .hero__side { display: flex; flex-direction: column; gap: 16px; }
 .hero__lead { font-size: 18px; color: var(--text-secondary); margin: 0; }
 
-.search {
-  display: flex; flex-wrap: wrap; gap: 8px; padding: 8px;
-  background: var(--color-white); border: 1.5px solid var(--color-ink); border-radius: 20px;
-}
-.search input { flex: 1 1 200px; border: 0; outline: none; background: transparent; padding: 10px 12px; font: 16px var(--font-body); color: var(--color-ink); }
+.hero__ctas { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero__ctas .btn { min-height: 52px; padding: 0 24px; font-size: 16px; }
 
 .block { padding-top: 48px; }
 .block__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 20px; }

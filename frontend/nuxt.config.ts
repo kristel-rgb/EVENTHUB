@@ -15,6 +15,11 @@ export default defineNuxtConfig({
     },
   },
 
+  // /eventos se movió a /buscar (el detalle sigue en /eventos/:id)
+  routeRules: {
+    '/eventos': { redirect: '/buscar' },
+  },
+
   // Variables públicas (se pueden sobrescribir con NUXT_PUBLIC_API_BASE en .env)
   runtimeConfig: {
     public: {
