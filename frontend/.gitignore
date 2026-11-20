@@ -22,3 +22,9 @@ logs
 .env
 .env.*
 !.env.example
+
+# Datos de prueba locales: API simulada, base de datos falsa y su visor.
+# No se suben. Se pueden borrar sin afectar el frontend:
+# solo hay que apuntar NUXT_PUBLIC_API_BASE al backend real.
+server/
+app/pages/dev/

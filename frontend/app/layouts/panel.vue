@@ -15,7 +15,6 @@ const menus: Record<'organizer' | 'admin', NavItem[]> = {
     { to: '/organizador/eventos', label: 'Mis eventos', icon: 'lucide:calendar-days' },
     { to: '/organizador/reservaciones', label: 'Reservaciones', icon: 'lucide:ticket' },
     { to: '/organizador/validar', label: 'Validar entradas', icon: 'lucide:scan-line' },
-    { to: '/organizador/reportes', label: 'Reportes', icon: 'lucide:file-down' },
   ],
   admin: [
     { to: '/admin', label: 'Resumen', icon: 'lucide:layout-dashboard' },
