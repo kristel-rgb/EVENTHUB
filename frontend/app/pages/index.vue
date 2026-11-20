@@ -4,9 +4,13 @@ import type { EventFilters } from '~/composables/useCatalog'
 // Catálogo público (tarea F03). Todos los datos vienen de la API:
 // GET /categories y GET /events con búsqueda, categoría y paginación.
 useHead({ title: 'Explorar eventos' })
+const { home } = useAppConfig()
 
 const searchText = ref('')
-const filters = ref<EventFilters>({ page: 1, limit: 8 })
+// Permite llegar filtrado por categoría, por ejemplo desde el detalle: /?categoria=musica
+const route = useRoute()
+const initialCategory = typeof route.query.categoria === 'string' ? route.query.categoria : undefined
+const filters = ref<EventFilters>({ page: 1, limit: 8, category: initialCategory })
 
 const { data: categories } = await useCategories()
 const { data: result, status, error, refresh } = await useEvents(filters)
@@ -29,16 +33,14 @@ function goToPage(page: number) {
 <template>
   <section class="container hero">
     <h1 class="hero__title">
-      Encontrá tu próximo <span class="hero__green">plan</span>
-      antes de que se <span class="hero__tag">agote.</span>
+      {{ home.title.before }} <span class="hero__green">{{ home.title.highlight }}</span>
+      {{ home.title.middle }} <span class="hero__tag">{{ home.title.tag }}</span>
     </h1>
     <div class="hero__side">
-      <p class="hero__lead">
-        Conciertos, talleres, ferias y conferencias. Reservá en segundos y llevá tu entrada con QR en el teléfono.
-      </p>
+      <p class="hero__lead">{{ home.lead }}</p>
       <form class="search" role="search" @submit.prevent="applySearch">
         <label for="search" class="sr-only">Buscar eventos</label>
-        <input id="search" v-model="searchText" type="search" placeholder="Jazz, taller de Vue, feria…">
+        <input id="search" v-model="searchText" type="search" :placeholder="home.searchPlaceholder">
         <button type="submit" class="btn btn--primary">Buscar</button>
       </form>
     </div>
@@ -69,7 +71,7 @@ function goToPage(page: number) {
 
   <section class="container events" aria-labelledby="events-title">
     <div class="events__head">
-      <h2 id="events-title">Próximos eventos</h2>
+      <h2 id="events-title">{{ home.eventsTitle }}</h2>
       <p v-if="result" class="events__count">{{ result.total }} resultados</p>
     </div>
 

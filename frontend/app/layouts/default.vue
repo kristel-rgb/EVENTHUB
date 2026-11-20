@@ -7,11 +7,8 @@ const route = useRoute()
 // Cierra el menú móvil al cambiar de página
 watch(() => route.fullPath, () => { menuOpen.value = false })
 
-const links = [
-  { to: '/', label: 'Explorar' },
-  { to: '/mis-entradas', label: 'Mis entradas' },
-  { to: '/organizador', label: 'Organizar un evento' },
-]
+// Menú y textos generales desde app.config.ts
+const { nav: links, site } = useAppConfig()
 </script>
 
 <template>
@@ -49,7 +46,7 @@ const links = [
     <footer class="site-footer">
       <div class="container site-footer__inner">
         <AppLogo variant="light" />
-        <p>Proyecto Final · Programación II</p>
+        <p>{{ site.footerNote }}</p>
       </div>
     </footer>
   </div>

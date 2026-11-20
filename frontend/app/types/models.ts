@@ -56,6 +56,12 @@ export interface Reservation {
   createdAt: string
 }
 
+/** Respuesta de POST /events/:id/reservations */
+export interface ReservationCreated {
+  reservation: Reservation
+  tickets: { _id: string, code: string }[]
+}
+
 /** Formato estándar de listas paginadas acordado con el backend */
 export interface Paginated<T> {
   items: T[]
