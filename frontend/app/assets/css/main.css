@@ -1,0 +1,120 @@
+/* =========================================================
+   EventHub · Sistema visual
+   Paleta aprobada: verde bosque + frambuesa + durazno + arena
+   ========================================================= */
+
+:root {
+  /* Colores principales */
+  --color-sand: #F7F1E8;        /* fondo general */
+  --color-ink: #1F2A24;         /* texto principal, menú lateral */
+  --color-forest: #0F5C4D;      /* acciones: reservar, guardar, ingresar */
+  --color-forest-dark: #0B4438; /* hover de acciones, texto sobre tinte verde */
+  --color-raspberry: #A3174F;   /* destacados y urgencia */
+  --color-raspberry-dark: #7A0F3A;
+  --color-peach: #FDB98A;       /* acento cálido, siempre con texto oscuro */
+  --color-white: #FFFFFF;
+
+  /* Tintes para etiquetas (fondo + texto) */
+  --tint-forest: #DCEDE6;
+  --tint-raspberry: #FBE3EC;
+  --tint-peach: #FFE9D9;
+  --tint-peach-text: #7A3A12;
+  --tint-neutral: #EDE6DA;
+
+  /* Texto y bordes */
+  --text-secondary: #5C5A52;
+  --text-on-dark-muted: #C9D6CF;
+  --border: #E7DCCB;
+  --surface-dark-2: #33433A;
+
+  /* Tipografía (las descarga @nuxt/fonts automáticamente) */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+
+  /* Formas y espacios */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+  --container: 1200px;
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  background: var(--color-sand);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+a { color: var(--color-forest); }
+a:hover { color: var(--color-forest-dark); }
+
+:focus-visible {
+  outline: 3px solid var(--color-raspberry);
+  outline-offset: 2px;
+}
+
+.container {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Oculta texto visualmente pero lo deja para lectores de pantalla */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- Botones ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 20px;
+  border: 1.5px solid transparent; border-radius: var(--radius-md);
+  font: 600 15px var(--font-body);
+  text-decoration: none; cursor: pointer;
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+.btn--primary { background: var(--color-forest); color: var(--color-white); }
+.btn--primary:hover { background: var(--color-forest-dark); color: var(--color-white); }
+.btn--accent { background: var(--color-peach); color: var(--color-ink); }
+.btn--accent:hover { background: #F9A56E; color: var(--color-ink); }
+.btn--outline { background: transparent; color: var(--color-ink); border-color: var(--color-ink); }
+.btn--outline:hover { background: var(--color-ink); color: var(--color-sand); }
+.btn--ghost { background: transparent; color: var(--color-ink); }
+.btn--ghost:hover { background: var(--tint-neutral); color: var(--color-ink); }
+.btn--pill { border-radius: var(--radius-pill); }
+
+/* ---------- Etiquetas (badges) ---------- */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: var(--radius-pill);
+  font-size: 12px; font-weight: 600;
+}
+.badge--success { background: var(--tint-forest); color: var(--color-forest-dark); }
+.badge--urgent  { background: var(--tint-raspberry); color: var(--color-raspberry-dark); }
+.badge--warm    { background: var(--tint-peach); color: var(--tint-peach-text); }
+.badge--neutral { background: var(--tint-neutral); color: var(--text-secondary); }
+
+/* ---------- Tarjetas ---------- */
+.card {
+  background: var(--color-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
