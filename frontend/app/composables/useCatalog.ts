@@ -1,4 +1,4 @@
-import type { Category, EventItem, Paginated } from '~/types/models'
+import type { Category, EventSearchResult } from '~/types/models'
 
 export interface EventFilters {
   q?: string
@@ -13,12 +13,15 @@ export function useCategories() {
   return useAsyncData('categories', () => api<Category[]>('/categories'))
 }
 
-/** Lista paginada de eventos publicados: GET /events?q=&category=&page=&limit= */
-export function useEvents(filters: Ref<EventFilters>) {
+/**
+ * Lista paginada de eventos publicados: GET /events?q=&category=&page=&limit=
+ * `key` distingue cada uso (la portada y la página de búsqueda piden cosas distintas).
+ */
+export function useEvents(filters: Ref<EventFilters>, key = 'events') {
   const api = useApi()
   return useAsyncData(
-    'events',
-    () => api<Paginated<EventItem>>('/events', { query: filters.value }),
+    key,
+    () => api<EventSearchResult>('/events', { query: filters.value }),
     { watch: [filters] },
   )
 }

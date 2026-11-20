@@ -70,6 +70,15 @@ export interface Paginated<T> {
   total: number
 }
 
+/**
+ * Respuesta de GET /events. Si la búsqueda no encontró nada y el backend
+ * pudo corregirla (por ejemplo "jass" -> "jazz"), devuelve los resultados
+ * de la búsqueda corregida y la indica en didYouMean.
+ */
+export interface EventSearchResult extends Paginated<EventItem> {
+  didYouMean?: string | null
+}
+
 /** Formato estándar de errores acordado con el backend */
 export interface ApiError {
   code: string

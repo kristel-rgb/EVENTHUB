@@ -14,7 +14,7 @@ export default defineAppConfig({
   },
 
   nav: [
-    { to: '/', label: 'Explorar' },
+    { to: '/eventos', label: 'Explorar' },
     { to: '/mis-entradas', label: 'Mis entradas' },
     { to: '/organizador', label: 'Organizar un evento' },
   ],
@@ -22,8 +22,20 @@ export default defineAppConfig({
   home: {
     title: { before: 'Encontrá tu próximo', highlight: 'plan', middle: 'antes de que se', tag: 'agote.' },
     lead: 'Conciertos, talleres, ferias y conferencias. Reservá en segundos y llevá tu entrada con QR en el teléfono.',
-    searchPlaceholder: 'Jazz, taller de Vue, feria…',
-    eventsTitle: 'Próximos eventos',
+    searchPlaceholder: 'Jazz, comedia, Pedregal…',
+    categoriesTitle: 'Explorá por categoría',
+    upcomingTitle: 'Próximos eventos',
+    upcomingCount: 4,
+    seeAllLabel: 'Ver todos los eventos',
+  },
+
+  eventsPage: {
+    title: 'Todos los eventos',
+    searchPlaceholder: 'Buscá por nombre, lugar o categoría',
+    perPage: 12,
+    allCategoriesLabel: 'Todos',
+    emptyText: 'No encontramos eventos con esa búsqueda.',
+    resetLabel: 'Ver todos los eventos',
   },
 
   event: {

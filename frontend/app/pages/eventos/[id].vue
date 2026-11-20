@@ -54,7 +54,7 @@ const unavailableReason = computed(() => {
 
 <template>
   <article v-if="event" class="container detail">
-    <NuxtLink to="/" class="detail__back">
+    <NuxtLink to="/eventos" class="detail__back">
       <Icon name="lucide:arrow-left" size="18" /> {{ text.backLabel }}
     </NuxtLink>
 
@@ -125,7 +125,7 @@ const unavailableReason = computed(() => {
 
     <div class="detail__body">
       <div class="detail__main">
-        <NuxtLink :to="{ path: '/', query: { categoria: event.category.slug } }" class="detail__cat">
+        <NuxtLink :to="{ path: '/eventos', query: { categoria: event.category.slug } }" class="detail__cat">
           {{ event.category.name }}
         </NuxtLink>
         <h1 class="detail__title">{{ event.name }}</h1>
