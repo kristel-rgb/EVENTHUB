@@ -1,52 +1,62 @@
 <script setup lang="ts">
-// Portada: presentación, categorías y una vista previa de los próximos eventos.
-// La búsqueda y el listado completo están en /buscar.
+// Portada: hero a pantalla completa con imagen de fondo + próximos eventos.
+// La búsqueda, las categorías y el listado completo están en /buscar.
 import type { EventFilters } from '~/composables/useCatalog'
 
 useHead({ title: 'Inicio' })
 const { home } = useAppConfig()
 
 const upcomingFilters = ref<EventFilters>({ page: 1, limit: home.upcomingCount })
-const { data: categories } = await useCategories()
 const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcoming')
 </script>
 
 <template>
-  <section class="container hero">
-    <h1 class="hero__title">
-      {{ home.title.before }} <span class="hero__green">{{ home.title.highlight }}</span>
-      {{ home.title.middle }} <span class="hero__tag">{{ home.title.tag }}</span>
-    </h1>
-    <div class="hero__side">
-      <p class="hero__lead">{{ home.lead }}</p>
-      <div class="hero__ctas">
-        <NuxtLink to="/buscar" class="btn btn--primary">
-          <Icon name="lucide:search" size="18" /> {{ home.ctaSearch }}
-        </NuxtLink>
-        <NuxtLink to="/mis-entradas" class="btn btn--outline">
-          <Icon name="lucide:ticket" size="18" /> {{ home.ctaTickets }}
-        </NuxtLink>
+  <!-- Hero a pantalla completa -->
+  <section class="hero" aria-labelledby="hero-title">
+    <img
+      class="hero__img"
+      :src="home.heroImage"
+      alt=""
+      fetchpriority="high"
+      decoding="async"
+    >
+    <div class="hero__shade" aria-hidden="true" />
+
+    <div class="container hero__content">
+      <h1 id="hero-title" class="hero__title">
+        {{ home.title.before }} <span class="hero__accent">{{ home.title.highlight }}</span>
+        {{ home.title.middle }} <span class="hero__tag">{{ home.title.tag }}</span>
+      </h1>
+
+      <div class="hero__side">
+        <p class="hero__lead">{{ home.lead }}</p>
+        <div class="hero__ctas">
+          <NuxtLink to="/buscar" class="btn btn--accent hero__btn">
+            <Icon name="lucide:search" size="18" /> {{ home.ctaSearch }}
+          </NuxtLink>
+          <NuxtLink to="/mis-entradas" class="btn hero__btn hero__btn--light">
+            <Icon name="lucide:ticket" size="18" /> {{ home.ctaTickets }}
+          </NuxtLink>
+        </div>
       </div>
     </div>
+
+    <a href="#upcoming" class="hero__scroll">
+      {{ home.scrollHint }} <Icon name="lucide:chevron-down" size="18" />
+    </a>
+
+    <p class="hero__credit">
+      Foto: <a :href="home.heroCredit.url" target="_blank" rel="noopener">{{ home.heroCredit.name }}</a> / Unsplash
+    </p>
   </section>
 
-  <section v-if="categories?.length" class="container block" aria-labelledby="cats-title">
-    <h2 id="cats-title" class="block__title">{{ home.categoriesTitle }}</h2>
-    <div class="cats">
-      <NuxtLink
-        v-for="c in categories"
-        :key="c._id"
-        :to="{ path: '/buscar', query: { categoria: c.slug } }"
-        class="cat"
-        :style="{ background: eventPoster(c.slug).bg, color: eventPoster(c.slug).ink }"
-      >
-        <span class="cat__name">{{ c.name }}</span>
-        <Icon name="lucide:arrow-up-right" size="20" class="cat__arrow" />
-      </NuxtLink>
-    </div>
-  </section>
-
-  <section v-if="!error && upcoming?.items.length" class="container block" aria-labelledby="upcoming-title">
+  <!-- Próximos eventos (sin cambios) -->
+  <section
+    v-if="!error && upcoming?.items.length"
+    id="upcoming"
+    class="container block"
+    aria-labelledby="upcoming-title"
+  >
     <div class="block__head">
       <h2 id="upcoming-title" class="block__title">{{ home.upcomingTitle }}</h2>
       <NuxtLink to="/buscar" class="block__more">
@@ -60,34 +70,76 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
 </template>
 
 <style scoped>
+/* ---------- Hero ---------- */
 .hero {
-  padding-top: 56px; padding-bottom: 24px;
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 40px; align-items: end;
+  position: relative;
+  min-height: 100svh;               /* ocupa toda la pantalla */
+  display: flex; align-items: flex-end;
+  padding: 120px 0 96px;             /* espacio para el encabezado y la flecha */
+  background: var(--color-ink);      /* color de respaldo si la imagen no carga */
+  color: var(--color-sand);
+  overflow: hidden;
+  isolation: isolate;
 }
-.hero__title { font-size: clamp(44px, 7vw, 88px); line-height: 0.95; letter-spacing: -0.045em; }
-.hero__green { color: var(--color-forest); }
-.hero__tag { display: inline-block; background: var(--color-peach); padding: 0 12px; border-radius: 14px; transform: rotate(-2deg); }
-.hero__side { display: flex; flex-direction: column; gap: 16px; }
-.hero__lead { font-size: 18px; color: var(--text-secondary); margin: 0; }
+.hero__img {
+  position: absolute; inset: 0; z-index: -2;
+  width: 100%; height: 100%; object-fit: cover; object-position: center 30%;
+}
+/* Capa oscura para que el texto se lea bien sobre la foto */
+.hero__shade {
+  position: absolute; inset: 0; z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(31, 42, 36, 0.55) 0%, rgba(31, 42, 36, 0.15) 35%, rgba(31, 42, 36, 0.92) 100%),
+    linear-gradient(90deg, rgba(122, 15, 58, 0.35) 0%, rgba(122, 15, 58, 0) 60%);
+}
 
-.hero__ctas { display: flex; flex-wrap: wrap; gap: 10px; }
-.hero__ctas .btn { min-height: 52px; padding: 0 24px; font-size: 16px; }
+.hero__content {
+  width: 100%;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+  gap: 32px 56px; align-items: end;
+}
+.hero__title {
+  font-size: clamp(48px, 8vw, 104px); line-height: 0.92; letter-spacing: -0.045em;
+  color: var(--color-sand); text-wrap: balance;
+}
+.hero__accent { color: var(--color-peach); }
+.hero__tag {
+  display: inline-block; background: var(--color-peach); color: var(--color-ink);
+  padding: 0 14px; border-radius: 16px; transform: rotate(-2deg);
+}
 
-.block { padding-top: 48px; }
+.hero__side { display: flex; flex-direction: column; gap: 22px; max-width: 520px; }
+.hero__lead { margin: 0; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.55; color: #E9E2D6; }
+.hero__ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero__btn { min-height: 54px; padding: 0 26px; font-size: 16px; }
+.hero__btn--light { background: rgba(247, 241, 232, 0.1); color: var(--color-sand); border-color: rgba(247, 241, 232, 0.7); backdrop-filter: blur(6px); }
+.hero__btn--light:hover { background: var(--color-sand); color: var(--color-ink); }
+
+.hero__scroll {
+  position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px;
+  color: var(--color-sand); text-decoration: none; font-size: 14px; font-weight: 500;
+}
+.hero__scroll:hover { color: var(--color-peach); }
+.hero__scroll .iconify, .hero__scroll svg { animation: nudge 1.6s ease-in-out infinite; }
+@keyframes nudge { 50% { transform: translateY(4px); } }
+
+.hero__credit { position: absolute; right: 16px; bottom: 10px; margin: 0; font-size: 11px; color: rgba(247, 241, 232, 0.7); }
+.hero__credit a { color: inherit; }
+
+@media (max-width: 640px) {
+  .hero { padding: 104px 0 88px; }
+  .hero__credit { right: 50%; transform: translateX(50%); bottom: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero__scroll .iconify, .hero__scroll svg { animation: none; }
+}
+
+/* ---------- Próximos eventos ---------- */
+.block { padding-top: 56px; scroll-margin-top: 16px; }
 .block__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 20px; }
-.block__title { font-size: 30px; margin-bottom: 20px; }
-.block__head .block__title { margin-bottom: 0; }
+.block__title { font-size: 30px; }
 .block__more { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
-
-.cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 12px; }
-.cat {
-  min-height: 96px; padding: 16px; border-radius: var(--radius-lg); text-decoration: none;
-  display: flex; flex-direction: column; justify-content: space-between;
-  transition: transform .15s;
-}
-.cat:hover { transform: translateY(-2px); }
-.cat__name { font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: -0.02em; }
-.cat__arrow { align-self: flex-end; opacity: 0.8; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 20px; }
 </style>

@@ -9,13 +9,16 @@ watch(() => route.fullPath, () => { menuOpen.value = false })
 
 // Menú y textos generales desde app.config.ts
 const { nav: links, site } = useAppConfig()
+
+// En la portada el encabezado va transparente encima de la imagen del hero
+const isHome = computed(() => route.path === '/')
 </script>
 
 <template>
   <div class="site">
-    <header class="site-header">
+    <header class="site-header" :class="{ 'site-header--overlay': isHome }">
       <div class="container site-header__inner">
-        <AppLogo />
+        <AppLogo :variant="isHome ? 'light' : 'dark'" />
 
         <button
           class="btn btn--ghost site-header__toggle"
@@ -78,6 +81,16 @@ const { nav: links, site } = useAppConfig()
 }
 .site-footer p { margin: 0; }
 
+/* Portada: encabezado transparente con texto claro sobre la imagen */
+.site-header--overlay { position: absolute; top: 0; left: 0; right: 0; z-index: 10; }
+.site-header--overlay .site-nav__link { color: var(--color-sand); }
+.site-header--overlay .site-nav__link:hover,
+.site-header--overlay .site-nav__link.router-link-exact-active { color: var(--color-peach); }
+.site-header--overlay .btn--ghost { color: var(--color-sand); }
+.site-header--overlay .btn--ghost:hover { background: rgba(247, 241, 232, 0.14); color: var(--color-sand); }
+.site-header--overlay .site-nav__cta { background: var(--color-sand); color: var(--color-ink); }
+.site-header--overlay .site-nav__cta:hover { background: var(--color-peach); color: var(--color-ink); }
+
 /* Móvil: el menú se vuelve desplegable */
 @media (max-width: 860px) {
   .site-header__inner { flex-wrap: wrap; }
@@ -91,5 +104,8 @@ const { nav: links, site } = useAppConfig()
   .site-nav__link { padding: 12px 4px; border-bottom: 1px solid var(--border); }
   .site-nav__actions { padding-top: 12px; }
   .site-nav__actions > * { flex: 1; }
+
+  .site-header--overlay .site-nav.is-open { background: var(--color-ink); border-radius: 16px; padding: 8px 16px 16px; }
+  .site-header--overlay .site-nav__link { border-bottom-color: rgba(247, 241, 232, 0.15); }
 }
 </style>

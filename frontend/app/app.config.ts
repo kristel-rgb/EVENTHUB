@@ -25,7 +25,11 @@ export default defineAppConfig({
     lead: 'Conciertos, talleres, ferias y conferencias. Reservá en segundos y llevá tu entrada con QR en el teléfono.',
     ctaSearch: 'Buscar eventos',
     ctaTickets: 'Mis entradas',
-    categoriesTitle: 'Explorá por categoría',
+    scrollHint: 'Ver próximos eventos',
+    // Imagen de fondo del hero. Para no depender de internet, se puede descargar
+    // y guardar en public/images/hero.jpg, y aquí poner: '/images/hero.jpg'
+    heroImage: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=2400&q=75',
+    heroCredit: { name: 'Yvette de Wit', url: 'https://unsplash.com/photos/stage-light-front-of-audience-NYrVisodQ2M' },
     upcomingTitle: 'Próximos eventos',
     upcomingCount: 4,
     seeAllLabel: 'Ver todos los eventos',
