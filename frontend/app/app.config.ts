@@ -13,6 +13,16 @@ export default defineAppConfig({
     footerNote: 'Proyecto Final · Programación II',
   },
 
+  // Enlaces del pie de página y datos para las páginas legales
+  footerLinks: [
+    { to: '/privacidad', label: 'Política de privacidad' },
+    { to: '/terminos', label: 'Términos y condiciones' },
+  ],
+  legal: {
+    contactEmail: 'soporte@eventhub.test', // reemplazar por el correo real del proyecto
+    disclaimer: 'EventHub es un proyecto académico. Este documento es un modelo de referencia y no constituye asesoría legal.',
+  },
+
   nav: [
     { to: '/', label: 'Inicio' },
     { to: '/buscar', label: 'Buscar' },

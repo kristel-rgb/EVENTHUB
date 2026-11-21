@@ -8,7 +8,7 @@ const route = useRoute()
 watch(() => route.fullPath, () => { menuOpen.value = false })
 
 // Menú y textos generales desde app.config.ts
-const { nav: links, site } = useAppConfig()
+const { nav: links, site, footerLinks } = useAppConfig()
 
 // En la portada el encabezado va transparente encima de la imagen del hero
 const isHome = computed(() => route.path === '/')
@@ -49,7 +49,10 @@ const isHome = computed(() => route.path === '/')
     <footer class="site-footer">
       <div class="container site-footer__inner">
         <AppLogo variant="light" />
-        <p>{{ site.footerNote }}</p>
+        <nav class="site-footer__links" aria-label="Información legal">
+          <NuxtLink v-for="l in footerLinks" :key="l.to" :to="l.to">{{ l.label }}</NuxtLink>
+        </nav>
+        <p>© {{ new Date().getFullYear() }} {{ site.name }} · {{ site.footerNote }}</p>
       </div>
     </footer>
   </div>
@@ -80,6 +83,9 @@ const isHome = computed(() => route.path === '/')
   padding-top: 28px; padding-bottom: 28px; font-size: 14px;
 }
 .site-footer p { margin: 0; }
+.site-footer__links { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.site-footer__links a { color: var(--color-sand); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
+.site-footer__links a:hover { color: var(--color-peach); text-decoration: underline; }
 
 /* Portada: encabezado transparente con texto claro sobre la imagen */
 .site-header--overlay { position: absolute; top: 0; left: 0; right: 0; z-index: 10; }
