@@ -17,9 +17,11 @@ export default defineAppConfig({
   footerLinks: [
     { to: '/privacidad', label: 'Política de privacidad' },
     { to: '/terminos', label: 'Términos y condiciones' },
+    { to: '/cookies', label: 'Política de cookies' },
   ],
   legal: {
     contactEmail: 'soporte@eventhub.test', // reemplazar por el correo real del proyecto
+    cookieNotice: 'Usamos cookies esenciales para mantener tu sesión segura y recordar tus preferencias. No usamos cookies de publicidad.',
     disclaimer: 'EventHub es un proyecto académico. Este documento es un modelo de referencia y no constituye asesoría legal.',
   },
 
@@ -43,6 +45,26 @@ export default defineAppConfig({
     upcomingTitle: 'Próximos eventos',
     upcomingCount: 4,
     seeAllLabel: 'Ver todos los eventos',
+
+    // Accesos rápidos "¿Qué hacer?": cada uno abre /buscar con esos filtros
+    quickTitle: '¿Qué hacer?',
+    quickLinks: [
+      { label: 'Hoy', hint: 'Planes para hoy mismo', icon: 'lucide:sun', query: { fecha: 'hoy' } },
+      { label: 'Este fin de semana', hint: 'De viernes a domingo', icon: 'lucide:party-popper', query: { fecha: 'fin-de-semana' } },
+      { label: 'Próximos 7 días', hint: 'Lo que viene esta semana', icon: 'lucide:calendar-days', query: { fecha: 'semana' } },
+      { label: 'Gratis', hint: 'Sin gastar un colón', icon: 'lucide:gift', query: { precio: 'gratis' } },
+      { label: 'En familia', hint: 'Para todas las edades', icon: 'lucide:users', query: { categoria: 'familia' } },
+    ],
+
+    // Colecciones: grupos de eventos con un tema. Por ahora son búsquedas guardadas;
+    // más adelante el backend podría administrarlas desde el panel del administrador.
+    collectionsTitle: 'Colecciones',
+    collections: [
+      { label: 'Noches de jazz', hint: 'Música en vivo para una noche tranquila', icon: 'lucide:music', query: { q: 'jazz' } },
+      { label: 'Para reír', hint: 'Stand-up e improvisación', icon: 'lucide:laugh', query: { categoria: 'comedia' } },
+      { label: 'Grandes shows en Pedregal', hint: 'Los escenarios más grandes del país', icon: 'lucide:speaker', query: { lugar: 'Centro de Eventos Pedregal, Belén' } },
+      { label: 'Sabores de Costa Rica', hint: 'Café, cacao y comida local', icon: 'lucide:utensils', query: { categoria: 'gastronomia' } },
+    ],
   },
 
   searchPage: {

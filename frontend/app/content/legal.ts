@@ -70,6 +70,7 @@ export const privacyPolicy: LegalDocument = {
       paragraphs: [
         'Usamos cookies y almacenamiento del navegador estrictamente necesarios para mantener tu sesión iniciada de forma segura y recordar preferencias básicas. Sin ellas no es posible iniciar sesión ni comprar entradas.',
         'Podés configurar tu navegador para rechazar cookies, pero algunas funciones de EventHub dejarán de funcionar.',
+        'El detalle de cada cookie está en nuestra Política de cookies.',
       ],
     },
     {
@@ -277,6 +278,66 @@ export const termsAndConditions: LegalDocument = {
       title: 'Ley aplicable',
       paragraphs: [
         'Estos términos se rigen por las leyes de la República de Costa Rica. Cualquier diferencia se intentará resolver primero de forma directa entre las partes y, de no lograrse, ante las autoridades competentes de Costa Rica.',
+      ],
+    },
+  ],
+}
+
+export const cookiePolicy: LegalDocument = {
+  title: 'Política de cookies',
+  updated: '2026-11-20',
+  intro: [
+    'Esta política explica qué son las cookies, cuáles usa EventHub, para qué sirven y cómo podés administrarlas. Complementa nuestra Política de privacidad.',
+  ],
+  sections: [
+    {
+      id: 'que-son',
+      title: '¿Qué son las cookies?',
+      paragraphs: [
+        'Las cookies son pequeños archivos de texto que un sitio web guarda en tu navegador para recordar información entre una visita y otra, por ejemplo que ya iniciaste sesión. Usamos también tecnologías parecidas, como el almacenamiento local del navegador.',
+        'Pueden ser de sesión, que se borran al cerrar el navegador, o persistentes, que se mantienen hasta su fecha de vencimiento o hasta que las borres.',
+      ],
+    },
+    {
+      id: 'cuales-usamos',
+      title: 'Cookies que usamos',
+      paragraphs: ['EventHub usa solamente cookies propias y necesarias para que la plataforma funcione:'],
+      list: [
+        'Sesión segura (esencial, persistente): mantiene tu sesión iniciada y renueva tu acceso de forma segura. Se configura para que no pueda leerse desde código del navegador. Sin ella no es posible iniciar sesión, reservar ni ver tus entradas.',
+        'Seguridad (esencial, de sesión): ayuda a proteger los formularios y a detectar usos indebidos de las cuentas.',
+        'Aviso de cookies (preferencia, persistente por 12 meses): recuerda que ya viste este aviso para no mostrártelo en cada visita.',
+      ],
+      after: ['No usamos cookies de publicidad ni vendemos información sobre tu navegación.'],
+    },
+    {
+      id: 'terceros',
+      title: 'Cookies de terceros',
+      list: [
+        'Inicio de sesión con Google: si elegís ingresar con Google, Google puede usar sus propias cookies en su sitio durante ese proceso, según su política de privacidad.',
+        'Contenido externo: algunas imágenes o mapas pueden cargarse desde servicios externos, que podrían aplicar sus propias cookies o registros técnicos.',
+      ],
+      after: ['No controlamos las cookies de terceros; te recomendamos revisar las políticas de esos servicios.'],
+    },
+    {
+      id: 'medicion',
+      title: 'Medición y estadísticas',
+      paragraphs: [
+        'Actualmente no usamos herramientas de analítica de terceros. Si en el futuro las incorporamos, actualizaremos esta política y te pediremos tu consentimiento antes de activarlas.',
+      ],
+    },
+    {
+      id: 'administrar',
+      title: 'Cómo administrar las cookies',
+      paragraphs: [
+        'Podés ver, bloquear o borrar las cookies desde la configuración de tu navegador (Chrome, Firefox, Safari, Edge u otro). Tené en cuenta que si bloqueás las cookies esenciales no vas a poder iniciar sesión ni usar tus entradas.',
+        'Si borrás las cookies, la próxima vez que entres volverás a ver el aviso de cookies.',
+      ],
+    },
+    {
+      id: 'cambios',
+      title: 'Cambios a esta política',
+      paragraphs: [
+        'Podemos actualizar esta política cuando cambien las cookies que usamos. Publicaremos la nueva versión en esta página con su fecha de actualización.',
       ],
     },
   ],

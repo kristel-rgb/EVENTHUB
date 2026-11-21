@@ -1,8 +1,12 @@
-import type { Category, EventSearchResult } from '~/types/models'
+import type { Category, EventSearchResult, LocationOption } from '~/types/models'
 
 export interface EventFilters {
   q?: string
   category?: string
+  from?: string           // fecha ISO: desde
+  to?: string             // fecha ISO: hasta
+  price?: 'free' | 'paid'
+  location?: string
   page: number
   limit: number
 }
@@ -13,8 +17,15 @@ export function useCategories() {
   return useAsyncData('categories', () => api<Category[]>('/categories'))
 }
 
+/** Lugares con eventos próximos (para el filtro "Lugar"): GET /locations */
+export function useLocations() {
+  const api = useApi()
+  return useAsyncData('locations', () => api<LocationOption[]>('/locations'))
+}
+
 /**
- * Lista paginada de eventos publicados: GET /events?q=&category=&page=&limit=
+ * Lista paginada de eventos publicados:
+ * GET /events?q=&category=&from=&to=&price=&location=&page=&limit=
  * `key` distingue cada uso (la portada y la página de búsqueda piden cosas distintas).
  */
 export function useEvents(filters: Ref<EventFilters>, key = 'events') {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Portada: hero a pantalla completa con imagen de fondo + próximos eventos.
+// Portada: hero a pantalla completa con imagen de fondo, próximos eventos,
+// accesos rápidos "¿Qué hacer?" y colecciones (todos llevan a /buscar con filtros).
 // La búsqueda, las categorías y el listado completo están en /buscar.
 import type { EventFilters } from '~/composables/useCatalog'
 
@@ -66,6 +67,22 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
     <div class="grid">
       <EventCard v-for="ev in upcoming.items" :key="ev._id" :event="ev" />
     </div>
+  </section>
+
+  <!-- ¿Qué hacer? accesos rápidos a /buscar con filtros -->
+  <section class="container block" aria-labelledby="quick-title">
+    <div class="block__head">
+      <h2 id="quick-title" class="block__title">{{ home.quickTitle }}</h2>
+    </div>
+    <LinkTiles :items="home.quickLinks" />
+  </section>
+
+  <!-- Colecciones: grupos de eventos con un tema -->
+  <section class="container block" aria-labelledby="collections-title">
+    <div class="block__head">
+      <h2 id="collections-title" class="block__title">{{ home.collectionsTitle }}</h2>
+    </div>
+    <LinkTiles :items="home.collections" />
   </section>
 </template>
 

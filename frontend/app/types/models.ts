@@ -101,6 +101,12 @@ export interface EventSearchResult extends Paginated<EventItem> {
   didYouMean?: string | null
 }
 
+/** Lugar con eventos próximos: GET /locations */
+export interface LocationOption {
+  name: string
+  count: number
+}
+
 /** Formato estándar de errores acordado con el backend */
 export interface ApiError {
   code: string
