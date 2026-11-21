@@ -1,9 +1,0 @@
-{
-  "devDependencies": {
-    "@iconify-json/lucide": "^1.2.157",
-    "@types/qrcode": "^1.5.6"
-  },
-  "dependencies": {
-    "qrcode": "^1.5.4"
-  }
-}
