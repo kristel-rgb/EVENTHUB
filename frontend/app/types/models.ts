@@ -16,13 +16,64 @@ export interface DocRef {
   name: string
 }
 
+export type IdType = 'cedula' | 'dimex' | 'pasaporte'
+
+export interface Address {
+  province: string
+  canton: string
+  line: string
+}
+
+/**
+ * Usuario con perfil completo. Los datos personales, de identificación,
+ * contacto y dirección son los que la pasarela de pagos usa para precargar
+ * la compra. EventHub NUNCA guarda datos de tarjetas de crédito o débito.
+ */
 export interface User {
   _id: string
-  name: string
+  username: string
+  firstName: string
+  lastName1: string
+  lastName2: string
+  name: string                    // nombre para mostrar (persona u organización)
+  organizationName: string | null
   email: string
+  phone: string | null
+  idType: IdType | null
+  idNumber: string | null
+  birthDate: string | null        // AAAA-MM-DD
+  address: Address | null
   role: Role
+  permissions: string[]           // permisos del rol, por ejemplo 'events:create'
+  status: 'active' | 'disabled'
   emailVerified: boolean
+  lastLoginAt: string | null
   createdAt: string
+}
+
+/** Respuesta de POST /auth/login */
+export interface AuthResponse {
+  accessToken: string
+  expiresAt: string
+  user: User
+}
+
+/** Cuerpo de POST /auth/register */
+export interface RegisterPayload {
+  firstName: string
+  lastName1: string
+  lastName2: string
+  username: string
+  email: string
+  phone: string
+  idType: IdType
+  idNumber: string
+  birthDate: string
+  province: string
+  canton: string
+  addressLine: string
+  password: string
+  acceptTerms: boolean
 }
 
 export interface Category {

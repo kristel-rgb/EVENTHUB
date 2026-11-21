@@ -83,6 +83,9 @@ Resumen:
 | `POST` | `/events/:id/reservations` | Asistente | Detalle del evento (botón comprar/reservar) |
 | `GET` | `/me/tickets` | Usuario con sesión | Mis entradas |
 | `GET` | `/organizer/stats` | Organizador | Panel del organizador |
+| `POST` | `/auth/login` | Pública | Ingresar |
+| `POST` | `/auth/register` | Pública | Crear cuenta |
+| `GET` | `/auth/google` | Pública | Botón "Continuar con Google" (redirección) |
 
 ---
 
@@ -357,6 +360,102 @@ Estadísticas del panel del organizador. **Requiere sesión de Organizador.** Se
 
 ---
 
+### 2.8 `POST /auth/login`
+
+**Body**
+
+```json
+{ "identifier": "UsuarioTest", "password": "••••••••" }
+```
+
+- `identifier` puede ser el **nombre de usuario** (sin importar mayúsculas) **o el correo**.
+
+**Respuesta 200**
+
+```json
+{
+  "accessToken": "<token>",
+  "expiresAt": "2026-11-21T09:59:44.959Z",
+  "user": {
+    "_id": "...", "username": "UsuarioTest", "firstName": "Usuario", "lastName1": "Test", "lastName2": "Pruebas",
+    "name": "Usuario Test", "organizationName": null, "email": "...", "phone": "88881234",
+    "idType": "cedula", "idNumber": "102340567", "birthDate": "1995-04-10",
+    "address": { "province": "Heredia", "canton": "Belén", "line": "" },
+    "role": "attendee", "permissions": ["profile:read:own", "reservations:create", "..."],
+    "status": "active", "emailVerified": true, "lastLoginAt": "...", "createdAt": "..."
+  }
+}
+```
+
+- **Nunca** incluir `passwordHash` ni `googleId`.
+- `permissions` = permisos del rol (ver la guía de base de datos, sección 3.8). El frontend los usa para mostrar u ocultar opciones; la seguridad real la aplica el backend.
+- Registrar **cada intento** en `accessLogs` y actualizar `lastLoginAt` si fue exitoso.
+
+**Errores**
+
+| Status | code | Cuándo |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Falta el usuario/correo o la contraseña. |
+| 401 | `INVALID_CREDENTIALS` | Usuario inexistente **o** contraseña incorrecta: mismo mensaje para los dos (no revelar cuál). |
+| 403 | `ACCOUNT_DISABLED` | La cuenta está desactivada. |
+| 429 | `TOO_MANY_REQUESTS` | 5 intentos fallidos en 15 minutos para ese usuario/correo. |
+
+---
+
+### 2.9 `POST /auth/register`
+
+Crea una cuenta de **Cliente** (`role: "attendee"`). Es el único tipo de cuenta que se registra solo. Envía el correo de verificación.
+
+**Body**
+
+```json
+{
+  "firstName": "María", "lastName1": "Rojas", "lastName2": "Mora",
+  "username": "maria.rojas", "email": "maria@example.com",
+  "phone": "88881234", "idType": "cedula", "idNumber": "102340567",
+  "birthDate": "1995-04-10",
+  "province": "Heredia", "canton": "Belén", "addressLine": "",
+  "password": "••••••••", "acceptTerms": true
+}
+```
+
+El frontend ya envía `phone` e `idNumber` **sin guiones ni espacios** y `email` en minúscula.
+
+**Validaciones** (las mismas que hace el frontend; la que cuenta es la del servidor)
+
+| Campo | Regla |
+|---|---|
+| `firstName`, `lastName1` | Mínimo 2 caracteres. `lastName2` opcional. |
+| `username` | `^[a-zA-Z0-9._]{4,20}$` y **único** (sin importar mayúsculas). |
+| `email` | Formato válido y **único**. |
+| `phone` | `^[2-8]\d{7}$` (8 dígitos de Costa Rica). |
+| `idType` / `idNumber` | `cedula`: `^[1-9]\d{8}$` · `dimex`: `^\d{11,12}$` · `pasaporte`: `^[A-Z0-9]{6,20}$`. **Único**. |
+| `birthDate` | Fecha válida, mayor de 18 años. |
+| `province` | Una de: San José, Alajuela, Cartago, Heredia, Guanacaste, Puntarenas, Limón. |
+| `canton` | Mínimo 2 caracteres. `addressLine` opcional. |
+| `password` | Mínimo 8 caracteres, con mayúscula, minúscula y número. Guardar **solo el hash**. |
+| `acceptTerms` | Debe ser `true`. |
+
+**Respuesta 201:** `{ "user": { ...mismo formato que en el login... } }` con `emailVerified: false`. No inicia sesión: el frontend lleva a la persona a "Ingresar".
+
+**Error 400 `VALIDATION_ERROR`** con **un mensaje por campo** en `details`, para que el frontend lo muestre debajo de cada casilla:
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "Revisá los datos marcados.",
+  "details": { "username": "Ese nombre de usuario ya está en uso.", "email": "Ya existe una cuenta con ese correo." }
+}
+```
+
+---
+
+### 2.10 `GET /auth/google`
+
+Redirige a Google OAuth 2.0. Al volver (`/auth/google/callback`), el backend crea o enlaza la cuenta (como **Cliente** si es nueva) y redirige al frontend con la sesión iniciada. Si falla, redirigir a `FRONTEND_URL/login?error=google`; el frontend ya muestra un aviso con ese parámetro.
+
+---
+
 ## 3. Endpoints que el frontend VA a necesitar (propuesta)
 
 Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del documento de división de tareas (sección 11). **Son propuestas:** si el backend prefiere otra forma, avisen antes de programarla.
@@ -365,8 +464,7 @@ Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del
 
 | Método | Ruta | Body / Notas | Respuesta |
 |---|---|---|---|
-| `POST` | `/auth/register` | `{ name, email, password, role? }`. Envía correo de verificación. | `201` `{ user }` |
-| `POST` | `/auth/login` | `{ email, password }` | `200` `{ accessToken, user }` + refresh token (ver nota) |
+| ~~`POST`~~ | ~~`/auth/register`~~, ~~`/auth/login`~~ | **Ya definidos** en las secciones 2.8 y 2.9. | |
 | `POST` | `/auth/refresh` | Usa el refresh token. | `200` `{ accessToken }` |
 | `POST` | `/auth/logout` | Invalida el refresh token. | `204` |
 | `GET` | `/auth/google` | Redirige a Google. | `302` |
@@ -382,7 +480,7 @@ Por decidir entre los dos:
 
 - **Dónde va el refresh token.** Recomendado: cookie `httpOnly`, `Secure`, `SameSite=Lax`. El `accessToken` lo guarda el frontend solo en memoria.
 - **Rutas del frontend a las que apuntan los enlaces de los correos:** `/verificar-correo?token=...` y `/restablecer-contrasena?token=...`.
-- **Formato del objeto `user` del login:** el mismo de `User` en `models.ts` (`_id`, `name`, `email`, `role`, `emailVerified`, `createdAt`).
+- **Tipos de usuario:** solo se registran **Clientes** (`attendee`). El **Administrador** (dueño del sistema, todos los permisos) se crea con el seed. El **Organizador** existe pero solo lo asigna el Admin (ver la guía de base de datos, sección 3.8).
 
 ### 3.2 Reservaciones y entradas (Persona 3)
 

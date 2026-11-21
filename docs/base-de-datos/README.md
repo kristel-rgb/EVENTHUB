@@ -14,7 +14,7 @@ Esta guía describe las **colecciones, campos, relaciones, índices y reglas** q
 1. [Diagrama de relaciones](#1-diagrama-de-relaciones)
 2. [Convenciones](#2-convenciones)
 3. [Colecciones](#3-colecciones)
-   - [users](#31-users) · [categories](#32-categories) · [events](#33-events) · [reservations](#34-reservations) · [tickets](#35-tickets) · [reviews](#36-reviews) · [tokens de seguridad](#37-colecciones-de-seguridad-persona-2)
+   - [users](#31-users) · [categories](#32-categories) · [events](#33-events) · [reservations](#34-reservations) · [tickets](#35-tickets) · [reviews](#36-reviews) · [seguridad](#37-colecciones-de-seguridad-persona-2) · [roles y permisos](#38-roles-y-permisos)
 4. [Reglas de negocio que dependen de la base de datos](#4-reglas-de-negocio-que-dependen-de-la-base-de-datos)
 5. [Consultas que el frontend necesita](#5-consultas-que-el-frontend-necesita)
 6. [Datos de prueba (seed)](#6-datos-de-prueba-seed)
@@ -66,22 +66,40 @@ Resumen:
 
 ### 3.1 `users`
 
+Perfil **completo** del usuario. Además de identificarlo, son los datos que la **pasarela de pagos** necesita para precargar la compra (nombre, identificación, correo, teléfono y dirección).
+
+> 🔒 **EventHub NUNCA guarda datos de tarjetas de crédito o débito** (número, vencimiento, CVV). Esos datos los escribe la persona directamente en la pasarela de pagos, que cumple PCI-DSS. La base de datos no debe tener ningún campo para eso.
+
 | Campo | Tipo | Requerido | Notas |
 |---|---|---|---|
 | `_id` | ObjectId | ✓ | |
-| `name` | String | ✓ | trim, 2–80 caracteres. |
-| `email` | String | ✓ | **único**, minúscula, trim. |
-| `passwordHash` | String | — | bcrypt o Argon2. `select: false`. Vacío si la cuenta es solo de Google. |
+| `username` | String | ✓ | **Único** sin importar mayúsculas. 4–20 caracteres: letras, números, `.` y `_`. Se puede usar para iniciar sesión. |
+| `firstName` | String | ✓ | Nombre(s). |
+| `lastName1` | String | ✓ | Primer apellido. |
+| `lastName2` | String | — | Segundo apellido (puede quedar vacío). |
+| `name` | String | ✓ | Nombre **para mostrar**: `firstName + lastName1`, o el nombre de la organización si es organizador. Es el que se popula en eventos, entradas y reseñas. |
+| `organizationName` | String \| null | — | Solo organizadores (por ejemplo "Sonido Vivo Producciones"). |
+| `email` | String | ✓ | **Único**, en minúscula. También sirve para iniciar sesión. |
+| `phone` | String | ✓* | 8 dígitos de Costa Rica, sin guiones (`88881234`). |
+| `idType` | String enum | ✓* | `cedula` \| `dimex` \| `pasaporte`. |
+| `idNumber` | String | ✓* | **Único**. Sin guiones ni espacios. Cédula: 9 dígitos · DIMEX: 11–12 dígitos · Pasaporte: 6–20 letras o números. |
+| `birthDate` | String o Date | ✓* | `AAAA-MM-DD`. Mayor de 18 años. |
+| `address` | Objeto | ✓* | `{ province, canton, line }`. `province`: una de las 7 provincias. `line` (dirección exacta) es opcional. |
+| `passwordHash` | String | ✓ | bcrypt o Argon2. `select: false`. **Nunca** la contraseña en texto plano. Vacío solo si la cuenta es de Google. |
 | `googleId` | String | — | Único y *sparse*, si inició sesión con Google. |
-| `avatarUrl` | String | — | Foto de Google, opcional. |
-| `role` | String enum | ✓ | `admin` \| `organizer` \| `attendee`. Por defecto `attendee`. |
-| `emailVerified` | Boolean | ✓ | Por defecto `false` (`true` si viene de Google). |
-| `status` | String enum | ✓ | `active` \| `disabled`. Por defecto `active`. Un admin puede desactivar. |
+| `role` | String enum | ✓ | `admin` \| `attendee` \| `organizer`. Por defecto `attendee` (ver sección 3.8). |
+| `status` | String enum | ✓ | `active` \| `disabled`. Por defecto `active`. |
+| `emailVerified` | Boolean | ✓ | `false` al registrarse; `true` al verificar el correo (o si viene de Google). |
+| `lastLoginAt` | Date \| null | — | Último ingreso exitoso. |
 | `createdAt` / `updatedAt` | Date | ✓ | timestamps. |
 
-**Índices:** `{ email: 1 }` único · `{ googleId: 1 }` único sparse · `{ role: 1 }`.
+\* Obligatorios para las cuentas que se registran desde el formulario. El administrador creado por el *seed* puede tenerlos vacíos hasta que complete su perfil.
 
-**Lo que ve el frontend:** `_id`, `name`, `email`, `role`, `emailVerified`, `createdAt`. En otras respuestas solo `{ _id, name }`.
+**Índices:** `{ email: 1 }` único · `{ username: 1 }` único con *collation* que ignore mayúsculas · `{ idNumber: 1 }` único *sparse* · `{ googleId: 1 }` único *sparse* · `{ role: 1, status: 1 }`.
+
+**Lo que ve el frontend** (respuesta de login y `/auth/me`): todos los campos **menos** `passwordHash` y `googleId`, más `permissions` (la lista de permisos de su rol). En otras respuestas solo `{ _id, name }`.
+
+**Primer administrador:** se crea con el script de *seed* leyendo sus datos de **variables de entorno** (`SEED_ADMIN_USERNAME`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, …). Nunca escribir sus credenciales en el código ni subirlas a Git.
 
 ---
 
@@ -211,12 +229,47 @@ Comentarios y calificaciones (RF-07).
 
 ### 3.7 Colecciones de seguridad (Persona 2)
 
-No las lee el frontend, pero se necesitan para RF-01 y RF-02:
+No las muestra el frontend, pero son necesarias para RF-01, RF-02 y la sección 6 del enunciado (seguridad):
 
-| Colección | Campos sugeridos | Notas |
+| Colección | Campos | Notas |
 |---|---|---|
-| `refreshtokens` / `sessions` | `user`, `tokenHash`, `expiresAt`, `revokedAt`, `userAgent`, `ip` | Guardar el **hash**, no el token. Índice TTL en `expiresAt`. |
+| `sessions` (o `refreshtokens`) | `user`, `tokenHash`, `ip`, `userAgent`, `expiresAt`, `revokedAt`, `createdAt` | Guardar el **hash** del token, nunca el token. Índice TTL en `expiresAt`. El logout llena `revokedAt`. |
+| `accessLogs` | `user` (o `null` si no existe), `identifier` (usuario o correo que se intentó), `success`, `reason` (`ok` \| `invalid_credentials` \| `disabled` \| `rate_limited`), `ip`, `userAgent`, `createdAt` | Registro de **todos** los intentos de ingreso. Sirve para auditoría y para el límite de intentos: **5 fallidos en 15 minutos** por identificador → `429`. Índice `{ identifier: 1, createdAt: -1 }` y TTL opcional (por ejemplo 90 días). |
 | `emailtokens` | `user`, `type` (`verify_email` \| `reset_password`), `tokenHash`, `expiresAt`, `usedAt` | Un solo uso y con expiración. Índice TTL en `expiresAt`. |
+
+### 3.8 `roles` y permisos
+
+Los permisos se definen **por rol**. El backend los revisa en **cada** endpoint con un middleware del tipo `authorize('events:create')`; el frontend solo los usa para mostrar u ocultar botones.
+
+| Rol (`key`) | Nombre visible | ¿Se registra solo? | Para qué |
+|---|---|---|---|
+| `admin` | Administrador | No (se crea con el seed) | Dueño del sistema: **todos** los permisos. |
+| `attendee` | Cliente | **Sí** (formulario "Crear cuenta") | Compra entradas, ve su historial, comenta. |
+| `organizer` | Organizador | No: **solo el Admin lo asigna** | Publica y administra sus eventos. Oculto por ahora, pero existe porque el enunciado exige los tres roles (RF-03). |
+
+Documento sugerido de la colección `roles`:
+
+```json
+{ "key": "attendee", "name": "Cliente", "selfRegistration": true, "assignableByAdmin": true,
+  "permissions": ["profile:read:own", "profile:update:own", "reservations:create", "..."] }
+```
+
+Catálogo de permisos (`:own` = solo sobre lo propio):
+
+| Permiso | Cliente | Organizador | Admin |
+|---|:-:|:-:|:-:|
+| `profile:read:own`, `profile:update:own` | ✓ | ✓ | ✓ |
+| `reservations:create`, `reservations:read:own`, `reservations:cancel:own` | ✓ | ✓ | ✓ |
+| `tickets:read:own` | ✓ | ✓ | ✓ |
+| `reviews:create`, `reviews:update:own` | ✓ | ✓ | ✓ |
+| `events:create`, `events:read:own`, `events:update:own` | | ✓ | ✓ |
+| `files:upload` | | ✓ | ✓ |
+| `reservations:read:own-events`, `tickets:validate:own-events`, `stats:read:own` | | ✓ | ✓ |
+| `users:read`, `users:update` | | | ✓ |
+| `categories:manage`, `events:manage` | | | ✓ |
+| `reservations:read:all`, `reviews:moderate`, `stats:read:all` | | | ✓ |
+
+> Si más adelante se necesita otro tipo de usuario, se agrega como un documento nuevo en `roles` con su lista de permisos, sin cambiar el código de los endpoints.
 
 ---
 
@@ -277,7 +330,7 @@ El frontend tiene una base simulada **solo local** (no está en el repo) con est
 
 | Colección | Cantidad | Detalle |
 |---|---|---|
-| users | 157 | 1 admin, 5 organizadores, 151 asistentes (uno de prueba con entradas en todos los estados). |
+| users | 158 | 1 admin (datos desde variables de entorno), 5 organizadores y 152 clientes con perfil completo ficticio (uno con entradas en todos los estados). |
 | categories | 12 | Las de la sección 3.2. |
 | events | 43 | Ficticios en lugares reales: Centro de Eventos Pedregal, Teatro Nacional, Parque Viva, Jazz Café, Antigua Aduana, Estadio Nacional… Incluye `draft`, `cancelled` y `finished`. |
 | reservations / tickets | ≈ 7 800 / ≈ 19 000 | Con ocupaciones variadas: algunos eventos agotados y otros casi llenos. |
@@ -318,4 +371,4 @@ Ejemplo de documento `events` tal como lo guardaría Mongo:
 | 6 | Máximo de entradas por compra (hoy 10) o por persona. | `reservations`, validación |
 | 7 | Búsqueda: índice de texto o Atlas Search (para "¿Quisiste decir…?"). | `events` |
 | 8 | Formato del `qrValue` (JWT u HMAC) y su secreto. | `tickets` |
-| 9 | ¿El rol `organizer` se elige al registrarse o lo aprueba un admin? | `users` |
+| 9 | ~~¿El rol `organizer` se elige al registrarse?~~ **Decidido:** solo el Admin lo asigna. | `users`, `roles` |

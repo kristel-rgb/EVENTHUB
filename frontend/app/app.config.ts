@@ -76,6 +76,16 @@ export default defineAppConfig({
     resetLabel: 'Ver todos los eventos',
   },
 
+  auth: {
+    asideTitle: 'Tus planes y tus entradas, en un solo lugar.',
+    benefits: [
+      'Reservá en segundos',
+      'Entradas digitales con QR en tu teléfono',
+      'Recordatorios antes de cada evento',
+      'Publicá tus propios eventos como organizador',
+    ],
+  },
+
   tickets: {
     title: 'Mis entradas',
     soonDays: 3, // con 3 días o menos para el evento, la entrada se marca como "Pronto"
