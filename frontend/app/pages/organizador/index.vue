@@ -25,6 +25,7 @@ function setPeriod(value: number) {
 }
 
 const { data: stats, status, error, refresh } = await useOrganizerStats(period)
+const reportOpen = ref(false)
 
 // ---------- Próximo evento ----------
 const next = computed(() => stats.value?.nextEvent ?? null)
@@ -75,11 +76,15 @@ const statusInfo: Record<string, { label: string, badge: string }> = {
             {{ p.label }}
           </button>
         </div>
+        <button type="button" class="btn btn--outline" @click="reportOpen = true">
+          <Icon name="lucide:file-down" size="16" /> Descargar reporte
+        </button>
         <NuxtLink to="/organizador/eventos/nuevo" class="btn btn--primary">
           <Icon name="lucide:plus" size="16" /> Crear evento
         </NuxtLink>
       </div>
     </header>
+    <ClientOnly><ReportDialog :open="reportOpen" :period="period" @close="reportOpen = false" /></ClientOnly>
 
     <p v-if="status === 'pending' && !stats" class="state">Cargando estadísticas…</p>
 

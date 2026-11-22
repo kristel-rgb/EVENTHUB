@@ -23,7 +23,10 @@ const organizerItems: NavItem[] = [
 // el Super Admin además tiene Cuentas y permisos, Inicio y Mis entradas.
 const siteItems = computed<NavItem[]>(() => session.role === 'admin'
   ? [
+      { to: '/admin', label: 'Resumen general', icon: 'lucide:chart-pie' },
       { to: '/admin/cuentas', label: 'Cuentas y permisos', icon: 'lucide:user-cog' },
+      { to: '/admin/categorias', label: 'Categorías', icon: 'lucide:tags' },
+      { to: '/admin/moderacion', label: 'Moderación', icon: 'lucide:shield-check' },
       { to: '/', label: 'Inicio', icon: 'lucide:house' },
       { to: '/buscar', label: 'Buscar eventos', icon: 'lucide:search' },
       { to: '/mis-entradas', label: 'Mis entradas', icon: 'lucide:ticket-check' },
@@ -133,6 +136,13 @@ const who = computed(() => session.user?.organizationName || session.user?.name 
 .panel-nav__link:hover .panel-nav__label,
 .panel-nav__link:focus-visible .panel-nav__label { opacity: 1; }
 
+/* Pantallas bajas: la barra del Super Admin tiene muchos íconos, se achican para que entren */
+@media (min-width: 861px) and (max-height: 860px) {
+  .panel-side { gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+  .panel-nav { gap: 3px; }
+  .panel-nav__link { width: 44px; height: 44px; }
+  .panel-nav__sep { margin: 3px 0; }
+}
 .panel-main { flex: 1 1 0; min-width: 0; padding: 28px 36px 48px; }
 /* Páginas públicas que la Organización abre dentro del panel (Buscar, detalle, Perfil): sin doble margen */
 .panel-main :deep(.container) { padding-left: 0; padding-right: 0; }

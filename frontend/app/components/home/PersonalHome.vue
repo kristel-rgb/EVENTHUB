@@ -134,7 +134,7 @@ const { data: popular } = await useEvents(popularFilters, 'home-popular')
 .welcome__title { font-size: clamp(2.25rem, 5vw, 3.25rem); letter-spacing: -0.04em; color: var(--color-sand); margin-top: 4px; }
 .welcome__title span { color: var(--color-peach); }
 .welcome__search {
-  flex: 1 1 360px; max-width: 520px; display: flex; align-items: center; gap: 10px;
+  flex: 1 1 320px; min-width: 0; max-width: 520px; display: flex; align-items: center; gap: 10px;
   background: var(--color-white); color: var(--text-secondary); border-radius: var(--radius-pill); padding: 6px 6px 6px 18px;
 }
 .welcome__search:focus-within { outline: 3px solid var(--color-peach); outline-offset: 2px; }
@@ -188,5 +188,9 @@ const { data: popular } = await useEvents(popularFilters, 'home-popular')
 
 @media (max-width: 900px) {
   .top { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) {
+  .welcome__inner > div, .welcome__search { flex-basis: 100%; }
+  .welcome__search { padding-left: 14px; }
 }
 </style>

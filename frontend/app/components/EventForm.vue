@@ -13,7 +13,9 @@ const route = useRoute()
 const actions = useEventActions()
 const { data: categories } = await useCategories()
 
-const form = reactive<EventFormState>(props.event ? formFromEvent(props.event) : emptyEventForm())
+const session = useSessionStore()
+// Un evento nuevo arranca con el correo de la cuenta como contacto (se puede cambiar)
+const form = reactive<EventFormState>(props.event ? formFromEvent(props.event) : { ...emptyEventForm(), contactEmail: session.user?.email ?? '' })
 const initial = ref(JSON.stringify(form))
 const dirty = computed(() => JSON.stringify(form) !== initial.value)
 

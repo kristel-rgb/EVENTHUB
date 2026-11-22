@@ -60,15 +60,16 @@ function menuFor(e: OrganizerEvent): MenuAction[] {
   const edit: MenuAction = { key: 'edit', label: 'Editar', icon: 'lucide:pencil', to: `/organizador/eventos/${e._id}/editar` }
   const reservations: MenuAction = { key: 'reservations', label: 'Ver reservas', icon: 'lucide:ticket', to: `/organizador/reservaciones?evento=${e._id}` }
   const dup: MenuAction = { key: 'duplicate', label: 'Duplicar', icon: 'lucide:copy' }
+  const report: MenuAction = { key: 'report', label: 'Descargar reporte', icon: 'lucide:file-down' }
   switch (e.displayStatus) {
     case 'draft':
       return [edit, preview, { key: 'publish', label: 'Publicar', icon: 'lucide:send' }, dup, { key: 'delete', label: 'Eliminar borrador', icon: 'lucide:trash-2', danger: true }]
     case 'published':
-      return [view, edit, reservations, dup, { key: 'cancel', label: 'Cancelar evento', icon: 'lucide:ban', danger: true }]
+      return [view, edit, reservations, report, dup, { key: 'cancel', label: 'Cancelar evento', icon: 'lucide:ban', danger: true }]
     case 'finished':
-      return [view, reservations, dup]
+      return [view, reservations, report, dup]
     default:
-      return [reservations, dup]
+      return [reservations, report, dup]
   }
 }
 
@@ -90,7 +91,9 @@ async function run(fn: () => Promise<void>) {
   return true
 }
 
+const reportFor = ref<string | null>(null)
 function onAction(key: string, e: OrganizerEvent) {
+  if (key === 'report') { reportFor.value = e._id; return }
   if (key === 'publish') {
     run(async () => {
       try {
@@ -248,6 +251,8 @@ const initials = (name: string) => name.replace(/[^\p{L}\s]/gu, '').split(/\s+/)
       <span class="muted">Página {{ filters.page }} de {{ totalPages }}</span>
       <button class="btn btn--outline" :disabled="filters.page >= totalPages" @click="setQuery({ pagina: String(filters.page + 1) })">Siguiente</button>
     </nav>
+
+    <ClientOnly><ReportDialog :open="Boolean(reportFor)" :event-id="reportFor" @close="reportFor = null" /></ClientOnly>
 
     <!-- Confirmaciones -->
     <ConfirmDialog

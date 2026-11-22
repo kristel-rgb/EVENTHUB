@@ -32,5 +32,21 @@ export function useAuth() {
     await navigateTo('/')
   }
 
-  return { login, register, logout }
+  // ---------- Recuperar contraseña, invitaciones y verificación de correo ----------
+  /** Siempre responde igual, exista o no la cuenta */
+  const forgotPassword = (email: string) => api('/auth/forgot-password', { method: 'POST', body: { email } })
+  /** Revisa el enlace antes de mostrar el formulario (no lo gasta) */
+  const checkResetToken = (token: string) =>
+    api<{ kind: 'reset' | 'invite', name: string, username: string, expiresAt: string }>('/auth/reset-password/check', { query: { token } })
+  const resetPassword = (token: string, password: string) =>
+    api<{ username: string, kind: 'reset' | 'invite' }>('/auth/reset-password', { method: 'POST', body: { token, password } })
+  const verifyEmail = async (token: string) => {
+    const r = await api<{ email: string }>('/auth/verify-email', { method: 'POST', body: { token } })
+    if (session.user && session.user.email === r.email) session.user = { ...session.user, emailVerified: true }
+    return r
+  }
+  /** Con sesión no hace falta el correo */
+  const resendVerification = (email?: string) => api('/auth/resend-verification', { method: 'POST', body: email ? { email } : {} })
+
+  return { login, register, logout, forgotPassword, checkResetToken, resetPassword, verifyEmail, resendVerification }
 }

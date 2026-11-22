@@ -61,7 +61,7 @@ const risky = computed(() => data.value && (form.kind !== data.value.kind || (fo
 function requestSave() {
   errors.value = {}
   if (isOrg.value && form.organizationName.trim().length < 2) {
-    errors.organizationName = form.kind === 'venue' ? 'Ingresá el nombre del lugar.' : 'Ingresá el nombre de la organización.'
+    errors.value.organizationName = form.kind === 'venue' ? 'Ingresá el nombre del lugar.' : 'Ingresá el nombre de la organización.'
     return
   }
   if (risky.value) confirmOpen.value = true

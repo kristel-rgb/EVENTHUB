@@ -13,11 +13,12 @@ const registerTo = computed(() => ({ path: '/registro', query: { redirect: route
 
 const { data: event, error, refresh } = await useEvent(id, preview)
 
-// Si el evento no existe, se muestra la página de error 404
+// Si el evento no existe se muestra el 404; si falló la conexión con la API, un 503 (no es lo mismo)
 if (error.value || !event.value) {
+  const notFound = !error.value || error.value.statusCode === 404 || error.value.statusCode === 400
   throw createError({
-    statusCode: error.value?.statusCode ?? 404,
-    statusMessage: 'Evento no encontrado',
+    statusCode: notFound ? 404 : 503,
+    statusMessage: notFound ? 'Evento no encontrado' : 'No pudimos cargar el evento. Intentá de nuevo en unos minutos.',
     fatal: true,
   })
 }
@@ -124,6 +125,7 @@ const unavailableReason = computed(() => {
       <Icon name="lucide:arrow-left" size="18" /> {{ text.backLabel }}
     </NuxtLink>
 
+    <div class="detail__grid">
     <div class="detail__top">
       <!-- Imagen del evento (o cartel de color si no tiene) -->
       <div class="media" :style="{ background: poster.bg, color: poster.ink }">
@@ -134,6 +136,7 @@ const unavailableReason = computed(() => {
       </div>
 
       <!-- Tarjeta de compra -->
+      <div class="detail__side">
       <aside class="buy card" aria-labelledby="buy-title">
         <h2 id="buy-title" class="sr-only">Comprar entradas</h2>
         <p class="buy__price"><span v-if="manyTypes" class="buy__from">Desde</span> {{ formatPrice(minPrice) }}</p>
@@ -207,53 +210,6 @@ const unavailableReason = computed(() => {
 
         <p v-else class="buy__closed">{{ unavailableReason }}</p>
       </aside>
-    </div>
-
-    <div class="detail__body">
-      <div class="detail__main">
-        <NuxtLink :to="{ path: '/buscar', query: { categoria: event.category.slug } }" class="detail__cat">
-          {{ event.category.name }}
-        </NuxtLink>
-        <h1 class="detail__title">{{ event.name }}</h1>
-        <p v-if="event.summary" class="detail__summary">{{ event.summary }}</p>
-
-        <p v-if="event.ratingCount > 0" class="detail__rating">
-          <Icon name="lucide:star" size="16" /> {{ event.ratingAvg }} · {{ event.ratingCount }} reseñas
-        </p>
-
-        <section class="detail__about" aria-labelledby="about-title">
-          <h2 id="about-title">Sobre el evento</h2>
-          <p v-for="(p, i) in paragraphs" :key="i">{{ p }}</p>
-        </section>
-
-        <section v-if="importantLines.length" class="detail__info" aria-labelledby="info-title">
-          <h2 id="info-title">Información importante</h2>
-          <ul>
-            <li v-for="(l, i) in importantLines" :key="i"><Icon name="lucide:info" size="16" /> {{ l }}</li>
-          </ul>
-        </section>
-
-        <section v-if="accessLabels.length" class="detail__access" aria-labelledby="access-title">
-          <h2 id="access-title">Accesibilidad y servicios</h2>
-          <ul>
-            <li v-for="(l, i) in accessLabels" :key="i">
-              <Icon :name="accessIcons[event.accessibility![i]!] ?? 'lucide:check'" size="18" /> {{ l }}
-            </li>
-          </ul>
-        </section>
-
-        <section aria-labelledby="policy-title" class="detail__policy">
-          <h2 id="policy-title">Antes de comprar</h2>
-          <p v-if="policyText" class="detail__policy-main"><Icon name="lucide:calendar-x" size="16" /> {{ policyText }}</p>
-          <p>{{ text.policy }}</p>
-        </section>
-
-        <section aria-labelledby="map-title" class="detail__map">
-          <h2 id="map-title">Cómo llegar</h2>
-          <iframe :src="mapEmbed" :title="`Mapa de ${event.venueName || event.location}`" loading="lazy" referrerpolicy="no-referrer-when-downgrade" />
-          <a :href="mapUrl" target="_blank" rel="noopener">Abrir en Google Maps <Icon name="lucide:external-link" size="14" /></a>
-        </section>
-      </div>
 
       <dl class="facts card">
         <div class="fact">
@@ -302,6 +258,63 @@ const unavailableReason = computed(() => {
           <dd>{{ ageLabel }}</dd>
         </div>
       </dl>
+      </div>
+    </div>
+
+    <div class="detail__body">
+      <div class="detail__main">
+        <NuxtLink :to="{ path: '/buscar', query: { categoria: event.category.slug } }" class="detail__cat">
+          {{ event.category.name }}
+        </NuxtLink>
+        <h1 class="detail__title">{{ event.name }}</h1>
+        <p v-if="event.summary" class="detail__summary">{{ event.summary }}</p>
+
+        <a v-if="event.ratingCount > 0" href="#resenas" class="detail__rating">
+          <StarRating :value="event.ratingAvg ?? 0" /> {{ event.ratingAvg }} · {{ event.ratingCount }} {{ event.ratingCount === 1 ? 'reseña' : 'reseñas' }}
+        </a>
+
+        <section class="detail__about" aria-labelledby="about-title">
+          <h2 id="about-title">Sobre el evento</h2>
+          <p v-for="(p, i) in paragraphs" :key="i">{{ p }}</p>
+        </section>
+
+        <section v-if="importantLines.length" class="detail__info" aria-labelledby="info-title">
+          <h2 id="info-title">Información importante</h2>
+          <ul>
+            <li v-for="(l, i) in importantLines" :key="i"><Icon name="lucide:info" size="16" /> {{ l }}</li>
+          </ul>
+        </section>
+
+        <section v-if="accessLabels.length" class="detail__access" aria-labelledby="access-title">
+          <h2 id="access-title">Accesibilidad y servicios</h2>
+          <ul>
+            <li v-for="(l, i) in accessLabels" :key="i">
+              <Icon :name="accessIcons[event.accessibility![i]!] ?? 'lucide:check'" size="18" /> {{ l }}
+            </li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="policy-title" class="detail__policy">
+          <h2 id="policy-title">Antes de comprar</h2>
+          <p v-if="policyText" class="detail__policy-main"><Icon name="lucide:calendar-x" size="16" /> {{ policyText }}</p>
+          <p>{{ text.policy }}</p>
+        </section>
+
+        <section aria-labelledby="map-title" class="detail__map">
+          <h2 id="map-title">Cómo llegar</h2>
+          <iframe :src="mapEmbed" :title="`Mapa de ${event.venueName || event.location}`" loading="lazy" referrerpolicy="no-referrer-when-downgrade" />
+          <a :href="mapUrl" target="_blank" rel="noopener">Abrir en Google Maps <Icon name="lucide:external-link" size="14" /></a>
+        </section>
+
+        <!-- Las reseñas dependen de la sesión: se cargan en el navegador -->
+        <ClientOnly v-if="!isDraft">
+          <EventReviews :event-id="event._id" />
+          <template #fallback><p class="detail__loading">Cargando reseñas…</p></template>
+        </ClientOnly>
+      </div>
+
+
+    </div>
     </div>
   </article>
 </template>
@@ -311,13 +324,22 @@ const unavailableReason = computed(() => {
 .detail__back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 500; text-decoration: none; color: var(--color-ink); }
 .detail__back:hover { color: var(--color-forest); }
 
-.detail__top { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 24px; margin-top: 8px; align-items: start; }
+/* Dos columnas: izquierda = imagen y contenido; derecha = compra y datos del evento.
+   Así el contenido sigue justo debajo de la imagen aunque el recuadro de compra sea alto. */
+.detail__top, .detail__body { display: contents; }
+.detail__grid {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 24px; margin-top: 8px;
+  grid-template-areas: 'media side' 'main side'; grid-template-rows: auto 1fr; align-items: start;
+}
+.media { grid-area: media; }
+.detail__side { grid-area: side; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.detail__main { grid-area: main; }
 
 .media { position: relative; border-radius: 28px; overflow: hidden; aspect-ratio: 16 / 10; display: flex; align-items: flex-end; padding: 32px; }
 .media__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .media__big { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.25rem, 5vw, 4rem); line-height: 0.92; letter-spacing: -0.045em; text-transform: uppercase; max-width: 12ch; }
 
-.buy { padding: 24px; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; }
+.buy { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
 .buy p { margin: 0; }
 .buy__price { font-family: var(--font-display); font-size: 2.5rem; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
 .buy__per { color: var(--text-secondary); font-size: 0.875rem; margin-top: -10px !important; }
@@ -350,10 +372,10 @@ const unavailableReason = computed(() => {
 .buy__ok-title { font-weight: 600; }
 .buy__ok a { color: var(--color-forest-dark); font-weight: 600; }
 
-.detail__body { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 24px; margin-top: 32px; align-items: start; }
 .detail__cat { display: inline-block; background: var(--color-white); border: 1px solid var(--border); color: var(--color-ink); text-decoration: none; font-size: 0.8125rem; font-weight: 600; padding: 6px 12px; border-radius: var(--radius-pill); }
 .detail__title { font-size: clamp(2.25rem, 5vw, 3.5rem); letter-spacing: -0.04em; margin: 14px 0 8px; }
-.detail__rating { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); margin: 0; }
+.detail__rating { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); margin: 0; text-decoration: none; }
+.detail__rating:hover { color: var(--color-ink); }
 .detail__about, .detail__policy { margin-top: 28px; }
 .detail__about h2, .detail__policy h2 { font-size: 1.375rem; margin-bottom: 10px; }
 .detail__about p { font-size: 1.0625rem; line-height: 1.7; margin: 0 0 12px; }
@@ -361,6 +383,7 @@ const unavailableReason = computed(() => {
 .detail__policy .detail__policy-main { display: flex; gap: 8px; align-items: flex-start; color: var(--color-ink); font-weight: 600; margin-bottom: 8px; }
 .detail__policy-main :deep(svg) { flex-shrink: 0; margin-top: 3px; color: var(--color-raspberry); }
 .detail__map { margin-top: 28px; }
+.detail__loading { margin-top: 32px; color: var(--text-secondary); }
 .detail__map h2 { font-size: 1.375rem; margin-bottom: 10px; }
 .detail__map iframe { width: 100%; height: 280px; border: 0; border-radius: var(--radius-md); display: block; background: var(--tint-neutral); }
 .detail__map a { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-weight: 600; font-size: 0.875rem; }
@@ -410,8 +433,7 @@ const unavailableReason = computed(() => {
 
 /* Tablet y móvil: una sola columna, la compra va debajo de la imagen */
 @media (max-width: 900px) {
-  .detail__top, .detail__body { grid-template-columns: 1fr; }
-  .buy { position: static; }
+  .detail__grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'media' 'side' 'main'; grid-template-rows: auto; }
   .media { aspect-ratio: 4 / 3; padding: 20px; }
 }
 </style>

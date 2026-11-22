@@ -1,13 +1,22 @@
 <script setup lang="ts">
 // Página "Buscar": búsqueda y listado completo de eventos con filtros.
 // Todos los filtros viven en la URL, por ejemplo:
-//   /buscar?q=jazz&categoria=conciertos&fecha=fin-de-semana&precio=gratis&lugar=...&pagina=2
+//   /buscar?q=jazz&categoria=conciertos&fecha=fin-de-semana&precio=gratis&lugar=...&orden=precio&pagina=2
 // así se pueden compartir y el botón "atrás" del navegador funciona.
 import type { EventFilters } from '~/composables/useCatalog'
 
 const route = useRoute()
 const router = useRouter()
 const { searchPage: text } = useAppConfig()
+
+// Orden de los resultados (en la URL en español, a la API en inglés)
+const sortOptions = [
+  { value: 'fecha', api: 'date', label: 'Fecha más próxima' },
+  { value: 'popular', api: 'popular', label: 'Más populares' },
+  { value: 'precio', api: 'price_asc', label: 'Precio: menor a mayor' },
+  { value: 'precio-desc', api: 'price_desc', label: 'Precio: mayor a menor' },
+] as const
+type SortKey = typeof sortOptions[number]['value']
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
 
@@ -18,6 +27,7 @@ const urlFilters = computed(() => ({
   fecha: isDateRangeKey(route.query.fecha) ? route.query.fecha : undefined,
   precio: route.query.precio === 'gratis' || route.query.precio === 'pago' ? route.query.precio : undefined,
   lugar: str(route.query.lugar),
+  orden: (sortOptions.find(o => o.value === route.query.orden)?.value ?? 'fecha') as SortKey,
   pagina: Number(route.query.pagina) > 0 ? Number(route.query.pagina) : 1,
 }))
 
@@ -32,6 +42,7 @@ const filters = computed<EventFilters>(() => {
     to: range?.to,
     price: u.precio === 'gratis' ? 'free' : u.precio === 'pago' ? 'paid' : undefined,
     location: u.lugar,
+    sort: sortOptions.find(o => o.value === u.orden)!.api,
     page: u.pagina,
     limit: text.perPage,
   }
@@ -63,7 +74,7 @@ const heading = computed(() => {
 })
 useHead({ title: () => heading.value })
 
-type UrlChanges = Partial<Record<'q' | 'categoria' | 'fecha' | 'precio' | 'lugar', string | undefined>> & { pagina?: number }
+type UrlChanges = Partial<Record<'q' | 'categoria' | 'fecha' | 'precio' | 'lugar' | 'orden', string | undefined>> & { pagina?: number }
 
 /** Cambia filtros en la URL. Cualquier cambio que no sea de página vuelve a la página 1. */
 function setQuery(changes: UrlChanges) {
@@ -76,12 +87,13 @@ function setQuery(changes: UrlChanges) {
       fecha: next.fecha || undefined,
       precio: next.precio || undefined,
       lugar: next.lugar || undefined,
+      orden: next.orden && next.orden !== 'fecha' ? next.orden : undefined,
       pagina: next.pagina && next.pagina > 1 ? String(next.pagina) : undefined,
     },
   })
 }
 
-function onSelect(key: 'fecha' | 'precio' | 'lugar', e: Event) {
+function onSelect(key: 'fecha' | 'precio' | 'lugar' | 'orden', e: Event) {
   setQuery({ [key]: (e.target as HTMLSelectElement).value || undefined })
 }
 
@@ -125,6 +137,13 @@ function goToPage(page: number) {
         <select :value="urlFilters.lugar ?? ''" @change="onSelect('lugar', $event)">
           <option value="">Todos los lugares</option>
           <option v-for="l in locations" :key="l.name" :value="l.name">{{ l.name }} ({{ l.count }})</option>
+        </select>
+      </label>
+
+      <label class="filter">
+        <span class="filter__label"><Icon name="lucide:arrow-up-down" size="16" /> Ordenar</span>
+        <select :value="urlFilters.orden" @change="onSelect('orden', $event)">
+          <option v-for="o in sortOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
         </select>
       </label>
 

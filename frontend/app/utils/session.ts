@@ -33,7 +33,7 @@ export const roleLabel: Record<Role, string> = {
 export const canOrganize = (role: Role | null | undefined) => role === 'organizer' || role === 'admin'
 
 /** Página de inicio de cada rol después de ingresar */
-export const homeForRole = (role: Role | null | undefined) => (canOrganize(role) ? '/organizador' : '/')
+export const homeForRole = (role: Role | null | undefined) => (role === 'admin' ? '/admin' : role === 'organizer' ? '/organizador' : '/')
 
 /** Solo se aceptan redirecciones internas (evita mandar al usuario a otro sitio) */
 export function safeRedirect(value: unknown) {

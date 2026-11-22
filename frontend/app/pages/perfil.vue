@@ -90,6 +90,17 @@ async function savePassword() {
   finally { pwSaving.value = false }
 }
 
+// ---------- Confirmar correo ----------
+const { resendVerification } = useAuth()
+const verifySent = ref(false)
+const verifySending = ref(false)
+async function sendVerify() {
+  verifySending.value = true
+  try { await resendVerification(); verifySent.value = true }
+  catch (err) { pwNotice.value = { tone: 'error', text: readApiError(err).message } }
+  finally { verifySending.value = false }
+}
+
 // ---------- Ayudas ----------
 const initials = computed(() => (user.value.organizationName || `${user.value.firstName} ${user.value.lastName1}`).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toUpperCase()).join(''))
 const idLabel = computed(() => idTypeOptions.find(o => o.value === user.value.idType)?.label ?? 'Identificación')
@@ -199,6 +210,12 @@ const maskedId = computed(() => {
                 {{ user.email }}
                 <span class="badge" :class="user.emailVerified ? 'badge--success' : 'badge--warm'">{{ user.emailVerified ? 'Verificado' : 'Sin verificar' }}</span>
               </dd>
+              <dd v-if="!user.emailVerified" class="verify">
+                <button v-if="!verifySent" type="button" class="btn btn--outline btn--sm" :disabled="verifySending" @click="sendVerify">
+                  <Icon name="lucide:mail" size="14" /> Enviarme el correo de confirmación
+                </button>
+                <span v-else class="muted" role="status">Te enviamos el enlace. Revisá tu correo.</span>
+              </dd>
             </div>
             <div><dt>{{ idLabel }}</dt><dd>{{ maskedId ?? 'Sin registrar' }}</dd></div>
             <div><dt>Tipo de cuenta</dt><dd>{{ roleLabel[user.role] }}</dd></div>
@@ -270,6 +287,8 @@ const maskedId = computed(() => {
 .facts { margin: 0; display: grid; gap: 12px; }
 .facts dt { font-size: 0.8125rem; color: var(--text-secondary); }
 .facts dd { margin: 2px 0 0; font-weight: 500; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; word-break: break-word; }
+.verify { margin-top: 8px !important; }
+.btn--sm { min-height: 36px; padding: 0 12px; font-size: 0.8125rem; }
 .muted { margin: 0; font-size: 0.8125rem; color: var(--text-secondary); }
 
 .rules { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8125rem; color: var(--text-secondary); }

@@ -460,3 +460,82 @@ export interface CreateAccountPayload {
   phone?: string
   permissions?: string[]
 }
+
+// ---------- Comentarios y calificaciones ----------
+export interface ReviewItem {
+  _id: string
+  rating: number                 // 1 a 5
+  comment: string
+  createdAt: string
+  updatedAt: string
+  edited: boolean
+  author: { name: string }       // nombre e inicial del apellido
+  mine: boolean
+  hidden?: boolean               // solo en la reseña propia
+  hiddenReason?: string | null
+}
+export interface ReviewSummary { avg: number | null, count: number, distribution: Record<number, number> }
+/** GET /events/:id/reviews */
+export interface ReviewList extends Paginated<ReviewItem> {
+  summary: ReviewSummary
+  myReview: ReviewItem | null
+  canReview: boolean
+  cannotReviewReason: string | null
+}
+
+// ---------- Reportes (Lambda + S3) ----------
+export type ReportType = 'organizer-summary' | 'event-reservations'
+export interface ReportItem {
+  _id: string
+  type: ReportType
+  format: 'csv' | 'pdf'
+  title: string
+  status: 'processing' | 'ready' | 'failed'
+  createdAt: string
+  url: string | null             // URL firmada temporal (S3)
+  fileName: string | null
+  expiresAt: string | null
+}
+
+// ---------- Super Admin: estadísticas, categorías y moderación ----------
+/** GET /admin/stats?period= */
+export interface AdminStats {
+  period: number
+  kpis: {
+    users: { value: number, new: number, newPrevious: number }
+    tickets: KpiValue
+    revenue: KpiValue
+    occupancy: { value: number, activeEvents: number }
+    checkedIn: number
+  }
+  sales: { current: SalesBucket[], previous: SalesBucket[] }
+  accounts: Record<AccountKind, number>
+  events: { published: number, draft: number, finished: number, cancelled: number }
+  categories: { _id: string, name: string, events: number }[]
+  topEvents: { _id: string, name: string, date: string, revenue: number, tickets: number }[]
+  topOrganizations: { _id: string, name: string, kind: AccountKind, events: number, tickets: number, revenue: number }[]
+  recentAccounts: { _id: string, name: string, kind: AccountKind, createdAt: string }[]
+  moderation: { flagged: number, hidden: number, total: number }
+}
+
+/** GET /admin/categories */
+export interface AdminCategory extends Category { events: number, published: number }
+
+/** GET /admin/reviews */
+export interface ModerationItem {
+  _id: string
+  rating: number
+  comment: string
+  createdAt: string
+  updatedAt: string
+  hidden: boolean
+  hiddenReason: string | null
+  hiddenAt: string | null
+  hiddenBy: string | null
+  flagged: boolean               // el filtro de palabras lo marcó para revisar
+  event: { _id: string, name: string }
+  author: { _id: string, name: string, username: string }
+}
+export interface ModerationList extends Paginated<ModerationItem> {
+  counts: { flagged: number, visible: number, hidden: number }
+}

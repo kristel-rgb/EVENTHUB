@@ -197,7 +197,14 @@ async function confirmCancel() {
     :position="selected ? `Entrada ${selected.n} de ${selected.of}` : ''"
     @close="selected = null"
   >
-    <template v-if="canManage" #extra>
+    <template v-if="selected && !canManage && new Date(selected.ticket.event.date).getTime() < Date.now() && selected.ticket.status !== 'cancelled'" #extra>
+      <div class="manage">
+        <NuxtLink :to="`/eventos/${selected.ticket.event._id}#resenas`" class="btn btn--primary manage__rate">
+          <Icon name="lucide:star" size="16" /> Calificar este evento
+        </NuxtLink>
+      </div>
+    </template>
+    <template v-else-if="canManage" #extra>
       <div class="manage">
         <p v-if="modalMsg" class="manage__msg" :class="`manage__msg--${modalMsg.tone}`" role="status">{{ modalMsg.text }}</p>
         <div class="manage__btns">

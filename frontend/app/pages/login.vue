@@ -20,6 +20,8 @@ const showPassword = ref(false)
 const googleUrl = `${config.public.apiBase}/auth/google`
 const googleUnavailable = computed(() => route.query.error === 'google')
 const justRegistered = computed(() => route.query.registrado === '1')
+const passwordReset = computed(() => route.query.restablecida === '1')
+const accountActivated = computed(() => route.query.activada === '1')
 
 /** A dónde ir después de ingresar: la página que pidió el login o el área según el rol */
 function nextPage(role: Role) {
@@ -54,7 +56,13 @@ async function submit() {
       <Icon name="lucide:ticket" size="18" /> Ingresá o creá una cuenta para comprar tus entradas. Después volvés al evento.
     </p>
     <p v-if="justRegistered" class="notice notice--ok" role="status">
-      <Icon name="lucide:circle-check" size="18" /> Tu cuenta quedó creada. Ya podés ingresar.
+      <Icon name="lucide:circle-check" size="18" /> Tu cuenta quedó creada. Ya podés ingresar. Te enviamos un correo para confirmar tu dirección.
+    </p>
+    <p v-if="passwordReset" class="notice notice--ok" role="status">
+      <Icon name="lucide:circle-check" size="18" /> Tu contraseña se cambió. Ingresá con la nueva.
+    </p>
+    <p v-if="accountActivated" class="notice notice--ok" role="status">
+      <Icon name="lucide:circle-check" size="18" /> Tu cuenta quedó activada. Ingresá con la contraseña que elegiste.
     </p>
     <p v-if="googleUnavailable" class="notice" role="status">
       <Icon name="lucide:info" size="18" /> El ingreso con Google estará disponible cuando se conecte el backend.
@@ -88,6 +96,8 @@ async function submit() {
           </div>
         </template>
       </FormField>
+
+      <NuxtLink :to="{ path: '/olvide-contrasena', query: form.identifier.includes('@') ? { correo: form.identifier.trim() } : {} }" class="forgot">¿Olvidaste tu contraseña?</NuxtLink>
 
       <p v-if="serverError" class="form__error" role="alert">
         <Icon name="lucide:circle-alert" size="18" /> {{ serverError }}
@@ -133,6 +143,7 @@ async function submit() {
 }
 .pass__toggle:hover { color: var(--color-ink); }
 
+.forgot { align-self: flex-end; margin-top: -8px; font-size: 0.875rem; font-weight: 600; }
 .divider { display: flex; align-items: center; gap: 12px; color: var(--text-secondary); font-size: 0.8125rem; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 

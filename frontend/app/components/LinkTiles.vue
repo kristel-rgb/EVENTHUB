@@ -2,7 +2,7 @@
 // Grupo de accesos pequeños que abren /buscar con filtros ya aplicados.
 // Se usa en la portada para "¿Qué hacer?" y "Colecciones" con el mismo estilo.
 defineProps<{
-  items: { label: string, hint: string, icon: string, query: Record<string, string> }[]
+  items: { label: string, hint: string, icon: string, query: Record<string, string | undefined> }[]
 }>()
 </script>
 
