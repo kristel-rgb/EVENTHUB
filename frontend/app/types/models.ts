@@ -7,7 +7,9 @@
 
 export type Role = 'admin' | 'organizer' | 'attendee'
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'finished'
-export type ReservationStatus = 'confirmed' | 'cancelled'
+export type ReservationStatus = 'pending' | 'confirmed' | 'cancelled'   // pending = esperando pago (máx. 3 h)
+export type PaymentStatus = 'pending' | 'paid' | 'free'
+export type CancelledBy = 'customer' | 'organizer' | 'system'               // system = el pago no se confirmó en 3 h
 export type TicketStatus = 'active' | 'used' | 'cancelled'
 
 /** Referencia mínima a otro documento (por ejemplo, el organizador) */
@@ -162,9 +164,56 @@ export interface Reservation {
   event: DocRef
   user: DocRef
   quantity: number
+  total: number
   status: ReservationStatus
+  paymentStatus: PaymentStatus
   createdAt: string
 }
+
+/** Reservación como la ven el organizador (GET /organizer/reservations) y el cliente (GET /me/reservations) */
+export interface ReservationItem {
+  _id: string
+  code: string                     // R-1A2B
+  quantity: number
+  unitPrice: number
+  total: number
+  status: ReservationStatus
+  paymentStatus: PaymentStatus
+  paymentRef: string | null        // referencia de la pasarela (nunca datos de tarjeta)
+  paidAt: string | null
+  expiresAt: string | null         // solo si está esperando pago
+  cancelledAt: string | null
+  cancelledBy: CancelledBy | null
+  ticketsSentAt: string | null
+  createdAt: string
+  ticketsUsed: number
+  canCancel: boolean
+  canResend: boolean
+  event: { _id: string, name: string, date: string, location: string, status: EventStatus, category: Category }
+  customer: { _id: string, name: string, email: string, phone?: string | null }   // en la lista el correo viene parcialmente oculto
+}
+
+/** GET /organizer/reservations/:id */
+export interface ReservationDetail extends ReservationItem {
+  tickets: { _id: string, code: string, status: TicketStatus, usedAt: string | null }[]
+}
+
+export interface OrganizerReservationList extends Paginated<ReservationItem> {
+  counts: { all: number, confirmed: number, pending: number, cancelled: number }
+  summary: {
+    reservations: number
+    newThisWeek: number
+    ticketsSold: number
+    ticketsPending: number
+    capacity: number
+    revenue: number
+    checkedIn: number
+    unitPrice: number | null       // solo si se eligió un evento
+  }
+}
+
+/** POST .../reservations/:id/resend */
+export interface ResendResult { sentTo: string, sentAt: string }
 
 /** Entrada digital del usuario: GET /me/tickets */
 export interface TicketItem {

@@ -90,6 +90,9 @@ const serial = computed(() => (props.ticket?.code.replace(/\D/g, '') ?? '').padS
         </div>
       </div>
 
+      <!-- Acciones extra que pasa la página (reenviar, cancelar) -->
+      <slot name="extra" />
+
       <div class="tm__actions">
         <NuxtLink :to="`/eventos/${ticket.event._id}`" class="btn btn--accent">
           Ver evento <Icon name="lucide:arrow-right" size="16" />

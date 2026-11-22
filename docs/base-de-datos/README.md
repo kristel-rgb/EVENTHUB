@@ -179,12 +179,22 @@ Perfil **completo** del usuario. Además de identificarlo, son los datos que la 
 | `_id` | ObjectId | ✓ | |
 | `event` | ObjectId → `Event` | ✓ | |
 | `user` | ObjectId → `User` | ✓ | El asistente que reservó. |
-| `quantity` | Number | ✓ | Entero de 1 a 10. |
-| `status` | String enum | ✓ | `confirmed` \| `cancelled`. |
+| `quantity` | Number | ✓ | Entero de 1 a `event.maxPerPurchase` (máx. 10). |
+| `unitPrice` | Number | ✓ | Precio por entrada **al momento de comprar** (colones). Si el organizador cambia el precio después, las compras viejas no cambian. |
+| `total` | Number | ✓ | `unitPrice × quantity`. |
+| `status` | String enum | ✓ | `pending` (esperando pago, guarda los espacios) \| `confirmed` \| `cancelled`. |
+| `paymentStatus` | String enum | ✓ | `pending` \| `paid` \| `free` (evento gratis). |
+| `paymentRef` | String \| null | — | Referencia que devuelve la pasarela. **Nunca** número de tarjeta, vencimiento ni CVV. |
+| `paidAt` | Date \| null | — | Cuándo se confirmó el pago. |
+| `expiresAt` | Date \| null | — | Solo con `status: pending`: `createdAt + 3 h`. Pasada esa hora, se cancela sola (regla 4.2). |
 | `cancelledAt` | Date \| null | — | Cuándo se canceló. |
+| `cancelledBy` | String enum \| null | — | `customer` \| `organizer` \| `system` (pago no confirmado en 3 h). |
+| `ticketsSentAt` | Date \| null | — | Último envío de las entradas por correo. Sirve para limitar el reenvío a 1 por minuto. |
 | `createdAt` / `updatedAt` | Date | ✓ | timestamps. `createdAt` se usa para "reservaciones por semana". |
 
-**Índices:** `{ event: 1, status: 1 }` (cupos y estadísticas) · `{ user: 1, createdAt: -1 }` (historial) · `{ createdAt: 1 }` (agrupación por semana).
+**Índices:** `{ event: 1, status: 1, createdAt: -1 }` (lista del organizador, cupos y estadísticas) · `{ user: 1, status: 1, createdAt: -1 }` (Mis entradas y "Esperando pago") · `{ status: 1, expiresAt: 1 }` (tarea que cancela los pagos vencidos) · `{ createdAt: 1 }` (agrupación por semana).
+
+> Las entradas (`tickets`) se crean **cuando el pago se confirma**, no antes. Una reservación `pending` no tiene entradas.
 
 > ¿Se permite que un mismo usuario tenga **varias** reservaciones del mismo evento? Hoy los datos de prueba lo permiten. Si deciden que no, agregar el índice único `{ event: 1, user: 1, status: 1 }` con un filtro parcial `status: 'confirmed'`.
 
@@ -307,9 +317,17 @@ if (!event) throw conflict('NOT_ENOUGH_SPOTS') // o evento no disponible
 
 ### 4.2 Cancelar una reservación
 
-- `reservation.status → cancelled`, `cancelledAt = now`.
+La puede cancelar **el cliente** (desde Mis entradas), **el organizador** del evento (desde Reservaciones) o **el sistema** si el pago no se confirmó en 3 horas.
+
+- Solo si `status` es `pending` o `confirmed`, el evento **no ha ocurrido** y **ninguna** de sus entradas está `used`.
+- `reservation.status → cancelled`, `cancelledAt = now`, `cancelledBy = customer | organizer | system`.
 - Sus entradas `active` pasan a `cancelled`.
-- Devolver el cupo con `$inc: { availableSpots: +quantity }`, sin pasarse de `capacity`.
+- Devolver el cupo con `$inc: { availableSpots: +quantity }`, sin pasarse de `capacity`. Hacerlo en la **misma transacción** que el cambio de estado, para no devolver dos veces si dos personas cancelan a la vez (filtrar por `status: { $ne: 'cancelled' }` en el `findOneAndUpdate`).
+- Enviar correo de cancelación al cliente (Persona 4).
+
+**Pago no confirmado (cancelación automática):** una tarea programada (EventBridge + Lambda, cada 5 minutos, Persona 4) busca `{ status: 'pending', expiresAt: { $lte: now } }` y aplica la misma cancelación con `cancelledBy: 'system'`. Si el webhook de pago llega **después** de eso, no se revive la reservación: se reembolsa.
+
+**Los espacios cuentan como ocupados** mientras la reservación está `pending` o `confirmed`. Los ingresos solo suman las `confirmed`.
 
 ### 4.3 Cancelar un evento
 
@@ -334,6 +352,9 @@ if (!event) throw conflict('NOT_ENOUGH_SPOTS') // o evento no disponible
 | Detalle | `GET /events/:id` | `findById` + populate + rating. |
 | Mis entradas | `GET /me/tickets` | `Ticket.find({ user })` + populate de `event` (con `category`) y `reservation`, ordenado por `event.date`. |
 | Panel organizador | `GET /organizer/stats` | Agregaciones sobre `events` y `reservations` del organizador (ver contrato de la API, sección 2.7). |
+| Mis eventos | `GET /organizer/events` | `find({ organizer })` + `$facet` para los conteos por estado (sección 2.11 de la API). |
+| Reservaciones (organizador) | `GET /organizer/reservations` | `find({ event: { $in: idsDelOrganizador } })` + `populate('user', 'name email')` + `$facet` con conteos por estado y el resumen (vendidas, ingresos, ingresaron). Búsqueda por nombre, correo y código (sección 2.12). |
+| Mis entradas · Esperando pago | `GET /me/reservations?status=pending` | `find({ user, status: 'pending' })` + populate del evento. |
 
 ---
 
@@ -376,8 +397,8 @@ Ejemplo de documento `events` tal como lo guardaría Mongo:
 
 | # | Tema | Afecta |
 |---|---|---|
-| 1 | Reglas de cancelación (hasta cuándo, si hay penalidad). | `reservations`, `POST /reservations/:id/cancel` |
-| 2 | Al cancelar un evento, ¿se cancelan las reservaciones y entradas en la base? | `events`, `reservations`, `tickets` |
+| 1 | ~~Reglas de cancelación~~ **Decidido:** cliente y organizador pueden cancelar mientras el evento no haya ocurrido y no se haya usado ninguna entrada; el sistema cancela las de pago no confirmado a las 3 h. **Falta:** política de reembolso (¿siempre?, ¿hasta cuántas horas antes?). | `reservations`, sección 2.12 de la API |
+| 2 | ~~Al cancelar un evento, ¿se cancelan las reservaciones?~~ **Decidido:** sí, todas (`pending` y `confirmed`) con `cancelledBy: 'organizer'`, y sus entradas. | `events`, `reservations`, `tickets` |
 | 3 | ¿Quién marca los eventos como `finished` (cron o backend)? | `events`, Persona 4 |
 | 4 | ¿Un usuario puede tener varias reservaciones del mismo evento? | Índice de `reservations` |
 | 5 | ¿Se puede reseñar antes de que termine el evento? | `reviews` |

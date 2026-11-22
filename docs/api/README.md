@@ -257,6 +257,14 @@ Comprar o reservar entradas. **Requiere sesión de Asistente.**
 > `Event.findOneAndUpdate({ _id, status: 'published', availableSpots: { $gte: quantity } }, { $inc: { availableSpots: -quantity } }, { new: true })`.
 > Si devuelve `null`, no había cupo → `409 NOT_ENOUGH_SPOTS`. Luego crear la reservación y las entradas (idealmente en una **transacción**). Debe existir una prueba automatizada que lance reservas simultáneas por el último espacio.
 
+**Pago y plazo de 3 horas**
+
+- En un evento **de pago**, la reservación nace con `status: "pending"` y `paymentStatus: "pending"`, guarda los espacios y lleva `expiresAt = createdAt + 3 h`. **Todavía no tiene entradas.**
+- Cuando la pasarela confirma el pago (webhook), pasa a `status: "confirmed"`, `paymentStatus: "paid"`, se guardan `paidAt` y `paymentRef`, **se emiten las entradas** y se envía el correo con ellas (`ticketsSentAt`).
+- Si el pago **no se confirma en 3 horas**, una tarea programada (EventBridge + Lambda, cada 5 min) la pasa a `cancelled` con `cancelledBy: "system"` y devuelve los espacios con `$inc`. Ver la guía de base de datos, regla 4.2.
+- En un evento **gratis** (`price: 0`) se confirma al instante con `paymentStatus: "free"`.
+- **Nunca** se guardan datos de tarjeta: solo la referencia que devuelve la pasarela (`paymentRef`).
+
 **Respuesta 201**
 
 ```json
@@ -266,7 +274,9 @@ Comprar o reservar entradas. **Requiere sesión de Asistente.**
     "event": { "_id": "6740a0a0...", "name": "Noche de jazz en vivo" },
     "user": { "_id": "6740a003...", "name": "Andrea Vargas" },
     "quantity": 2,
+    "total": 24000,
     "status": "confirmed",
+    "paymentStatus": "paid",
     "createdAt": "2026-11-20T18:30:00.000Z"
   },
   "tickets": [
@@ -276,7 +286,7 @@ Comprar o reservar entradas. **Requiere sesión de Asistente.**
 }
 ```
 
-- Se crea **una entrada (Ticket) por cada espacio** reservado.
+- Se crea **una entrada (Ticket) por cada espacio** reservado, cuando el pago queda confirmado. Si el pago todavía está pendiente, `tickets` viene vacío.
 - Después de confirmar, disparar el **correo de confirmación** (Persona 4, SES). Si el correo falla, la reserva **no** se debe revertir.
 - Mientras no exista el login, el frontend llama sin token; cuando exista, sin token debe responder `401 UNAUTHORIZED`.
 
@@ -537,6 +547,113 @@ Pantallas: `/organizador/eventos` (lista), `/organizador/eventos/nuevo` y `/orga
 
 ---
 
+### 2.12 Reservaciones (organizador y cliente)
+
+Pantallas: `/organizador/reservaciones` (organizador) y `/mis-entradas` (cliente). Las dos pueden **cancelar** una reservación y **reenviar** las entradas por correo (por si el cliente las perdió).
+
+#### Objeto `ReservationItem`
+
+```json
+{
+  "_id": "6740b0000000000000000001",
+  "code": "R-0001",
+  "quantity": 2,
+  "unitPrice": 12000,
+  "total": 24000,
+  "status": "confirmed",
+  "paymentStatus": "paid",
+  "paymentRef": "PAY-8F2A91C0",
+  "paidAt": "2026-11-20T18:31:30.000Z",
+  "expiresAt": null,
+  "cancelledAt": null,
+  "cancelledBy": null,
+  "ticketsSentAt": "2026-11-20T18:32:00.000Z",
+  "createdAt": "2026-11-20T18:30:00.000Z",
+  "ticketsUsed": 0,
+  "canCancel": true,
+  "canResend": true,
+  "event": { "_id": "...", "name": "Noche de jazz en vivo", "date": "...", "location": "Jazz Café, Escazú", "status": "published", "category": { "_id": "...", "name": "Conciertos", "slug": "conciertos" } },
+  "customer": { "_id": "...", "name": "Andrea Vargas", "email": "a••••s@correo.cr" }
+}
+```
+
+| Campo | Notas |
+|---|---|
+| `code` | Código corto para mostrar y buscar: `R-` + últimos 4 caracteres del `_id` en mayúscula. |
+| `status` | `pending` (esperando pago) \| `confirmed` \| `cancelled`. |
+| `paymentStatus` | `pending` \| `paid` \| `free`. |
+| `paymentRef` | Referencia de la pasarela. **Nunca** datos de tarjeta. |
+| `expiresAt` | Solo si `status: "pending"`: hora en que se cancela sola (creación + 3 h). |
+| `cancelledBy` | `customer` \| `organizer` \| `system` (pago no confirmado a tiempo). |
+| `ticketsUsed` | Entradas de la reservación ya validadas en la puerta. |
+| `canCancel` / `canResend` | Calculados por el backend con las reglas de abajo; el frontend muestra u oculta los botones con esto. |
+| `customer.email` | En las **listas** va parcialmente oculto (`a••••s@correo.cr`). Completo, con `phone`, solo en el detalle del organizador. |
+
+#### Endpoints del organizador
+
+Solo reservaciones de **eventos suyos** (si no, `404`).
+
+| Método | Ruta | Qué hace | Respuesta |
+|---|---|---|---|
+| `GET` | `/organizer/reservations?event=&status=&q=&sort=&page=&limit=` | Lista. `event` vacío = todos sus eventos. `status`: `confirmed` \| `pending` \| `cancelled`. `q` busca por nombre, correo, código de reservación (`R-1A2B`) o de entrada (`EH-1042`), sin tildes. `sort`: `recent` (por defecto) \| `oldest` \| `total` \| `quantity`. `limit` máx. 50. | `200` (ver abajo) |
+| `GET` | `/organizer/reservations/:id` | Detalle: `ReservationItem` con `customer.email` completo, `customer.phone` y `tickets: [{ _id, code, status, usedAt }]`. | `200` |
+| `POST` | `/organizer/reservations/:id/cancel` | Cancela (`cancelledBy: "organizer"`). | `200` `ReservationItem` |
+| `POST` | `/organizer/reservations/:id/resend` | Reenvía las entradas al correo de la cuenta del cliente. | `200` `{ sentTo, sentAt }` (`sentTo` con el correo oculto) |
+
+Respuesta de la lista:
+
+```json
+{
+  "items": [ /* ReservationItem */ ],
+  "page": 1, "limit": 20, "total": 86,
+  "counts": { "all": 92, "confirmed": 81, "pending": 6, "cancelled": 5 },
+  "summary": {
+    "reservations": 81,
+    "newThisWeek": 12,
+    "ticketsSold": 142,
+    "ticketsPending": 8,
+    "capacity": 180,
+    "revenue": 1704000,
+    "checkedIn": 0,
+    "unitPrice": 12000
+  }
+}
+```
+
+- `counts` respeta la búsqueda `q` pero no el filtro `status` (son los números de las pestañas).
+- `summary` es del evento elegido (o de todos), **sin** la búsqueda: `reservations` y `ticketsSold` cuentan solo `confirmed`; `revenue` suma solo lo **pagado**; `checkedIn` = entradas `used`; `unitPrice` es `null` cuando son todos los eventos.
+
+#### Endpoints del cliente
+
+Solo sus propias reservaciones (si no, `404`).
+
+| Método | Ruta | Qué hace | Respuesta |
+|---|---|---|---|
+| `GET` | `/me/reservations?status=` | Sus reservaciones. El frontend la usa con `status=pending` para mostrar "Esperando pago" en Mis entradas. | `200` `ReservationItem[]` |
+| `POST` | `/me/reservations/:id/cancel` | Cancela su reservación completa (`cancelledBy: "customer"`). | `200` `ReservationItem` |
+| `POST` | `/me/reservations/:id/resend` | Le reenvía sus entradas (por si las perdió). | `200` `{ sentTo, sentAt }` |
+
+> Las entradas de `GET /me/tickets` ya traen `reservation._id`, que es lo que el frontend usa para cancelar o reenviar desde el boleto.
+
+#### Reglas (iguales para los dos lados)
+
+- **Cancelar** se puede si la reservación está `pending` o `confirmed`, el evento **todavía no ocurrió** y **ninguna entrada se usó**. Al cancelar: `status: "cancelled"`, `cancelledAt`, `cancelledBy`, las entradas pasan a `cancelled`, los espacios vuelven con `$inc` y se envía un correo al cliente (Persona 4).
+- **Reenviar** se puede si está `confirmed` y el evento no ocurrió. Siempre al correo **de la cuenta** (no a uno que mande el cliente). Límite: una vez por minuto por reservación → `429 RESEND_TOO_SOON`.
+- **Reembolsos** de reservaciones pagadas que se cancelan: **pendiente de decidir** la política (¿siempre?, ¿hasta X horas antes?). El frontend por ahora no promete reembolso.
+
+#### Errores
+
+| Status | code | Cuándo |
+|---|---|---|
+| 404 | `RESERVATION_NOT_FOUND` | No existe o no le pertenece (al cliente o a un evento del organizador). |
+| 409 | `RESERVATION_ALREADY_CANCELLED` | Ya estaba cancelada. |
+| 409 | `EVENT_FINISHED` | El evento ya ocurrió. |
+| 409 | `TICKETS_ALREADY_USED` | Alguna entrada ya se validó en la puerta. |
+| 409 | `RESERVATION_NOT_CONFIRMED` | Reenviar algo que no está confirmado (pendiente de pago o cancelado). |
+| 429 | `RESEND_TOO_SOON` | Reenvío repetido en menos de un minuto. |
+
+---
+
 ## 3. Endpoints que el frontend VA a necesitar (propuesta)
 
 Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del documento de división de tareas (sección 11). **Son propuestas:** si el backend prefiere otra forma, avisen antes de programarla.
@@ -567,9 +684,10 @@ Por decidir entre los dos:
 
 | Método | Ruta | Notas |
 |---|---|---|
-| `POST` | `/reservations/:id/cancel` | Cancelar desde "Mis entradas". Devuelve los espacios de forma atómica (`$inc`), pasa las entradas a `cancelled` y envía el correo de cancelación. Reglas de cancelación: **pendientes de decidir**. |
+| ~~`POST`~~ | ~~`/reservations/:id/cancel`~~ | **Ya definido** en la sección 2.12 (`/me/reservations/:id/cancel` y `/organizer/reservations/:id/cancel`). |
+| `POST` | `/payments/webhook` | Lo llama la pasarela cuando confirma un pago: verificar la firma, pasar la reservación a `confirmed`/`paid`, emitir entradas y enviar el correo. Si llega después de las 3 h y la reservación ya se canceló: **reembolsar** (pendiente de definir con la pasarela). |
 | `POST` | `/tickets/validate` | `{ qrValue }`. Para el organizador en la puerta: verifica la firma, que la entrada sea de un evento suyo y que no esté usada. La marca `used` con `usedAt`. Errores: `TICKET_INVALID`, `TICKET_ALREADY_USED`, `TICKET_CANCELLED`. |
-| `GET` | `/organizer/events/:id/reservations` | Reservaciones de **un evento suyo**, paginado. |
+| ~~`GET`~~ | ~~`/organizer/events/:id/reservations`~~ | Reemplazado por `GET /organizer/reservations?event=:id` (sección 2.12). |
 
 ### 3.3 Gestión de eventos del organizador (Persona 3 y Persona 4)
 
@@ -611,6 +729,10 @@ El equipo decidió **no** mostrar botones de reportes en el frontend. Igual hay 
 | 404 | `EVENT_NOT_FOUND`, `NOT_FOUND` | No existe. |
 | 409 | `EVENT_NOT_AVAILABLE`, `EVENT_FINISHED`, `NOT_ENOUGH_SPOTS` | Reservas. |
 | 409 | `TICKET_ALREADY_USED`, `TICKET_CANCELLED` | Validación en la puerta. |
+| 404 | `RESERVATION_NOT_FOUND` | Reservación inexistente o ajena. |
+| 409 | `RESERVATION_ALREADY_CANCELLED`, `TICKETS_ALREADY_USED`, `RESERVATION_NOT_CONFIRMED` | Cancelar o reenviar reservaciones (sección 2.12). |
+| 409 | `EVENT_INCOMPLETE`, `EVENT_NOT_EDITABLE`, `EVENT_NOT_DRAFT`, `EVENT_NOT_DELETABLE`, `EVENT_NOT_CANCELLABLE` | Gestión de eventos (sección 2.11). |
+| 429 | `RESEND_TOO_SOON` | Reenvío de entradas repetido en menos de un minuto. |
 | 409 | `EMAIL_TAKEN` | Registro con un correo existente. |
 | 429 | `TOO_MANY_REQUESTS` | Rate limit (login, recuperación). |
 | 500 | `INTERNAL_ERROR` | Error inesperado; mensaje genérico. |
@@ -640,5 +762,8 @@ Si quieren ver cómo se comporta un endpoint (por ejemplo la búsqueda con `didY
 - [ ] `POST /events/:id/reservations` con descuento **atómico** del cupo y **prueba de concurrencia**.
 - [ ] `GET /me/tickets` con `qrValue` **firmado**.
 - [ ] `GET /organizer/stats` con agregaciones reales y filtrado por el organizador del token.
+- [ ] Gestión de eventos (sección 2.11): crear, editar, publicar, vista previa, duplicar, cancelar, eliminar borrador y subida de imagen a S3.
+- [ ] Reservaciones (sección 2.12): estado de pago, **cancelación automática a las 3 h** (tarea programada), cancelar y reenviar desde los dos lados.
+- [ ] Webhook de la pasarela de pago. **No guardar datos de tarjeta**, solo `paymentRef`.
 - [ ] Endpoints de la sección 3 acordados con el frontend antes de programarlos.
 - [ ] Documentación OpenAPI/Swagger/Scalar generada a partir de este contrato.
