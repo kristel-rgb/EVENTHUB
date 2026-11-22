@@ -126,7 +126,7 @@ Perfil **completo** del usuario. Además de identificarlo, son los datos que la 
 |---|---|---|---|
 | `_id` | ObjectId | ✓ | |
 | `name` | String | ✓ | 3–120 caracteres. |
-| `description` | String | ✓ | Texto plano; párrafos separados con `\n`. |
+| `description` | String | ✓ | Texto plano; párrafos separados con `\n`. Mín. 40 caracteres para publicar. |
 | `category` | ObjectId → `Category` | ✓ | |
 | `imageUrl` | String \| null | — | URL de S3 (Persona 4). `null` = sin imagen. |
 | `location` | String | ✓ | Formato **"Lugar, Ciudad"**, por ejemplo `Centro de Eventos Pedregal, Belén`. El filtro "Lugar" compara el texto **exacto**, así que conviene que el mismo lugar se escriba siempre igual. |
@@ -135,7 +135,19 @@ Perfil **completo** del usuario. Además de identificarlo, son los datos que la 
 | `availableSpots` | Number | ✓ | Entero entre 0 y `capacity`. Al crear = `capacity`. **Solo se modifica con `$inc` atómico** (ver regla 4.1). |
 | `price` | Number | ✓ | Entero ≥ 0, en colones. `0` = gratis. |
 | `status` | String enum | ✓ | `draft` \| `published` \| `cancelled` \| `finished`. Por defecto `draft`. |
-| `organizer` | ObjectId → `User` | ✓ | Usuario con `role: organizer`. |
+| `organizer` | ObjectId → `User` | ✓ | Usuario con `role: organizer` (o el admin). |
+| `summary` | String | publicar | Una frase, máx. 160 caracteres. |
+| `imageAlt` | String | si hay imagen | Texto alternativo para lectores de pantalla. |
+| `venueName` | String | publicar | Nombre del lugar. |
+| `address` | String | — | Señas. |
+| `city` | String | publicar | Ciudad o cantón. `location` se arma como `"venueName, city"`. |
+| `province` | String enum | publicar | San José, Alajuela, Cartago, Heredia, Guanacaste, Puntarenas, Limón. |
+| `endDate` | Date \| null | — | Fin del evento; después de `date`. |
+| `doorsOpenMinutes` | Number | — | 0–240. Por defecto 30. |
+| `maxPerPurchase` | Number | — | 1–10. Por defecto 10. |
+| `minAge` | Number | — | `0`, `12`, `15` o `18`. Por defecto 0 (todo público). |
+| `accessibility` | [String] | — | `wheelchair`, `parking`, `public_transport`, `sign_language`. |
+| `importantInfo` | String | — | Una indicación por línea. |
 | `createdAt` / `updatedAt` | Date | ✓ | timestamps. |
 
 **Campos calculados que la API agrega a la respuesta** (no se guardan, o se guardan como caché):
@@ -152,6 +164,7 @@ Perfil **completo** del usuario. Además de identificarlo, son los datos que la 
 - `{ status: 1, date: 1 }`: catálogo público (publicados y futuros, por fecha).
 - `{ category: 1, status: 1, date: 1 }`: filtro por categoría.
 - `{ organizer: 1, date: -1 }`: panel del organizador.
+- `{ organizer: 1, status: 1, updatedAt: -1 }`: lista "Mis eventos" con pestañas por estado.
 - `{ location: 1 }`: filtro y agregación por lugar.
 - Para la búsqueda `q`: índice de texto en `name` y `location`, **o** MongoDB Atlas Search (necesario para el "¿Quisiste decir…?" con fuzzy). La búsqueda debe **ignorar tildes**.
 

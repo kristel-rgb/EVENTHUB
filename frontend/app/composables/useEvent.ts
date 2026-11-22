@@ -1,9 +1,14 @@
 import type { ApiError, EventItem, ReservationCreated } from '~/types/models'
 
-/** Detalle de un evento: GET /events/:id */
-export function useEvent(id: string) {
+/**
+ * Detalle de un evento: GET /events/:id
+ * Con preview = true pide también borradores (vista previa del organizador).
+ */
+export function useEvent(id: string, preview = false) {
   const api = useApi()
-  return useAsyncData(`event-${id}`, () => api<EventItem>(`/events/${id}`))
+  return useAsyncData(`event-${id}${preview ? '-preview' : ''}`, () =>
+    api<EventItem>(`/events/${id}`, { query: preview ? { preview: 1 } : undefined }),
+  )
 }
 
 /**

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // Detalle de un evento (se abre al hacer clic en una tarjeta del catálogo).
 // Datos: GET /events/:id · Compra: POST /events/:id/reservations
+// Con ?vista=previa se muestra un borrador tal como se verá al publicarlo (sin poder comprar).
 const route = useRoute()
 const id = String(route.params.id)
+const preview = route.query.vista === 'previa'
 const { event: text } = useAppConfig()
 
-const { data: event, error, refresh } = await useEvent(id)
+const { data: event, error, refresh } = await useEvent(id, preview)
 
 // Si el evento no existe, se muestra la página de error 404
 if (error.value || !event.value) {
@@ -17,21 +19,51 @@ if (error.value || !event.value) {
 }
 
 useHead({
-  title: event.value.name,
-  meta: [{ name: 'description', content: event.value.description.slice(0, 150) }],
+  title: () => (preview ? `Vista previa: ${event.value?.name}` : event.value?.name ?? 'Evento'),
+  meta: [
+    { name: 'description', content: () => event.value?.summary || event.value?.description.slice(0, 150) || '' },
+    ...(preview ? [{ name: 'robots', content: 'noindex' }] : []),
+  ],
 })
 
 const poster = computed(() => eventPoster(event.value!.category.slug))
 const reserved = computed(() => event.value!.capacity - event.value!.availableSpots)
 const occupancy = computed(() => Math.round((reserved.value / event.value!.capacity) * 100))
 const isPast = computed(() => new Date(event.value!.date).getTime() < Date.now())
-const canBuy = computed(() => event.value!.status === 'published' && !isPast.value && event.value!.availableSpots > 0)
-const mapUrl = computed(() => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.value!.location + ', Costa Rica')}`)
+const isDraft = computed(() => event.value!.status === 'draft')
+const canBuy = computed(() => !isDraft.value && event.value!.status === 'published' && !isPast.value && event.value!.availableSpots > 0)
+const mapUrl = computed(() => {
+  const e = event.value!
+  const q = [e.venueName, e.address, e.city ?? e.location, e.province].filter(Boolean).join(', ') || e.location
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q + ', Costa Rica')}`
+})
 const paragraphs = computed(() => event.value!.description.split('\n').filter(Boolean))
+
+// Información ampliada que llena el organizador
+const timeRange = computed(() => {
+  const e = event.value!
+  return e.endDate ? `${formatTime(e.date)} a ${formatTime(e.endDate)}` : formatTime(e.date)
+})
+const doorsTime = computed(() => {
+  const m = event.value!.doorsOpenMinutes
+  return m ? formatTime(new Date(new Date(event.value!.date).getTime() - m * 60000).toISOString()) : null
+})
+const placeLine = computed(() => {
+  const e = event.value!
+  return [e.city, e.province].filter(Boolean).join(', ')
+})
+const ageLabel = computed(() => minAgeOptions.find(o => o.value === (event.value!.minAge ?? 0))?.label ?? 'Todo público')
+const accessLabels = computed(() =>
+  (event.value!.accessibility ?? []).map(a => accessibilityOptions.find(o => o.value === a)?.label).filter(Boolean) as string[],
+)
+const accessIcons: Record<string, string> = {
+  wheelchair: 'lucide:accessibility', parking: 'lucide:square-parking', public_transport: 'lucide:bus', sign_language: 'lucide:hand',
+}
+const importantLines = computed(() => (event.value!.importantInfo ?? '').split('\n').map(l => l.trim()).filter(Boolean))
 
 // Compra
 const quantity = ref(1)
-const maxQuantity = computed(() => Math.min(text.maxPerPurchase, event.value!.availableSpots))
+const maxQuantity = computed(() => Math.min(event.value!.maxPerPurchase ?? text.maxPerPurchase, event.value!.availableSpots))
 const total = computed(() => event.value!.price * quantity.value)
 const { reserve, loading, errorMessage, result } = useReserve()
 
@@ -45,6 +77,7 @@ async function buy() {
 
 const unavailableReason = computed(() => {
   const e = event.value!
+  if (e.status === 'draft') return 'Vista previa: la compra se habilita cuando el evento se publique.'
   if (e.status === 'cancelled') return 'Este evento fue cancelado.'
   if (e.status === 'finished' || isPast.value) return 'Este evento ya finalizó.'
   if (e.availableSpots === 0) return 'Ya no quedan espacios disponibles.'
@@ -54,14 +87,23 @@ const unavailableReason = computed(() => {
 
 <template>
   <article v-if="event" class="container detail">
-    <NuxtLink to="/buscar" class="detail__back">
+    <!-- Barra de vista previa (solo borradores) -->
+    <div v-if="isDraft" class="preview theme-fixed" role="status">
+      <Icon name="lucide:eye" size="20" />
+      <p><strong>Vista previa · no publicado.</strong> Así se verá el evento cuando se publique. Solo lo ven quienes tienen este enlace.</p>
+      <NuxtLink :to="`/organizador/eventos/${event._id}/editar`" class="btn preview__btn">
+        <Icon name="lucide:pencil" size="16" /> Volver a editar
+      </NuxtLink>
+    </div>
+
+    <NuxtLink v-if="!isDraft" to="/buscar" class="detail__back">
       <Icon name="lucide:arrow-left" size="18" /> {{ text.backLabel }}
     </NuxtLink>
 
     <div class="detail__top">
       <!-- Imagen del evento (o cartel de color si no tiene) -->
       <div class="media" :style="{ background: poster.bg, color: poster.ink }">
-        <img v-if="event.imageUrl" :src="event.imageUrl" :alt="event.name" class="media__img">
+        <img v-if="event.imageUrl" :src="event.imageUrl" :alt="event.imageAlt || event.name" class="media__img">
         <template v-else>
           <span class="media__big" aria-hidden="true">{{ event.name }}</span>
         </template>
@@ -129,6 +171,7 @@ const unavailableReason = computed(() => {
           {{ event.category.name }}
         </NuxtLink>
         <h1 class="detail__title">{{ event.name }}</h1>
+        <p v-if="event.summary" class="detail__summary">{{ event.summary }}</p>
 
         <p v-if="event.ratingCount > 0" class="detail__rating">
           <Icon name="lucide:star" size="16" /> {{ event.ratingAvg }} · {{ event.ratingCount }} reseñas
@@ -137,6 +180,22 @@ const unavailableReason = computed(() => {
         <section class="detail__about" aria-labelledby="about-title">
           <h2 id="about-title">Sobre el evento</h2>
           <p v-for="(p, i) in paragraphs" :key="i">{{ p }}</p>
+        </section>
+
+        <section v-if="importantLines.length" class="detail__info" aria-labelledby="info-title">
+          <h2 id="info-title">Información importante</h2>
+          <ul>
+            <li v-for="(l, i) in importantLines" :key="i"><Icon name="lucide:info" size="16" /> {{ l }}</li>
+          </ul>
+        </section>
+
+        <section v-if="accessLabels.length" class="detail__access" aria-labelledby="access-title">
+          <h2 id="access-title">Accesibilidad y servicios</h2>
+          <ul>
+            <li v-for="(l, i) in accessLabels" :key="i">
+              <Icon :name="accessIcons[event.accessibility![i]!] ?? 'lucide:check'" size="18" /> {{ l }}
+            </li>
+          </ul>
         </section>
 
         <section aria-labelledby="policy-title" class="detail__policy">
@@ -152,12 +211,20 @@ const unavailableReason = computed(() => {
         </div>
         <div class="fact">
           <dt><Icon name="lucide:clock" size="18" /> Hora</dt>
-          <dd>{{ formatTime(event.date) }}</dd>
+          <dd>
+            {{ timeRange }}
+            <span v-if="doorsTime" class="fact__sub">Apertura de puertas: {{ doorsTime }}</span>
+          </dd>
         </div>
         <div class="fact">
           <dt><Icon name="lucide:map-pin" size="18" /> Ubicación</dt>
           <dd>
-            {{ event.location }}<br>
+            <template v-if="event.venueName">
+              {{ event.venueName }}
+              <span v-if="event.address" class="fact__sub">{{ event.address }}</span>
+              <span v-if="placeLine" class="fact__sub">{{ placeLine }}</span>
+            </template>
+            <template v-else>{{ event.location }}</template>
             <a :href="mapUrl" target="_blank" rel="noopener">Ver en el mapa <Icon name="lucide:external-link" size="14" /></a>
           </dd>
         </div>
@@ -168,6 +235,10 @@ const unavailableReason = computed(() => {
         <div class="fact">
           <dt><Icon name="lucide:users" size="18" /> Capacidad</dt>
           <dd>{{ event.capacity }} personas</dd>
+        </div>
+        <div class="fact">
+          <dt><Icon name="lucide:id-card" size="18" /> Edad</dt>
+          <dd>{{ ageLabel }}</dd>
         </div>
       </dl>
     </div>
@@ -222,6 +293,24 @@ const unavailableReason = computed(() => {
 .detail__about h2, .detail__policy h2 { font-size: 1.375rem; margin-bottom: 10px; }
 .detail__about p { font-size: 1.0625rem; line-height: 1.7; margin: 0 0 12px; }
 .detail__policy p { color: var(--text-secondary); margin: 0; }
+.detail__summary { font-size: 1.1875rem; line-height: 1.5; color: var(--text-secondary); margin: 0 0 8px; max-width: 60ch; }
+.detail__info, .detail__access { margin-top: 28px; }
+.detail__info h2, .detail__access h2 { font-size: 1.375rem; margin-bottom: 10px; }
+.detail__info ul, .detail__access ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.detail__info li, .detail__access li { display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+.detail__info li :deep(svg), .detail__access li :deep(svg) { flex-shrink: 0; margin-top: 3px; color: var(--color-forest); }
+.detail__access ul { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.fact__sub { display: block; font-weight: 400; font-size: 0.875rem; color: var(--text-secondary); }
+.fact dd a { margin-top: 4px; }
+
+.preview {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+  padding: 14px 18px; border-radius: var(--radius-md); background: var(--color-ink); color: var(--color-sand);
+}
+.preview p { margin: 0; flex: 1; min-width: 220px; }
+.preview :deep(svg) { color: var(--color-peach); flex-shrink: 0; }
+.preview__btn { min-height: 40px; background: var(--color-peach); color: var(--color-ink); }
+.preview__btn:hover { background: var(--color-sand); }
 
 .facts { margin: 0; padding: 8px 22px; }
 .fact { display: grid; gap: 4px; padding: 14px 0; border-bottom: 1px solid var(--track); }

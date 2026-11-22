@@ -97,6 +97,64 @@ export interface EventItem {
   organizer: DocRef
   ratingAvg: number | null
   ratingCount: number
+  // Información ampliada (la llena el organizador en el formulario)
+  summary?: string
+  imageAlt?: string
+  venueName?: string
+  address?: string
+  city?: string
+  province?: string
+  endDate?: string | null
+  doorsOpenMinutes?: number
+  maxPerPurchase?: number
+  minAge?: number                  // 0 = todo público
+  accessibility?: AccessibilityFeature[]
+  importantInfo?: string
+  updatedAt?: string
+}
+
+export type AccessibilityFeature = 'wheelchair' | 'parking' | 'public_transport' | 'sign_language'
+
+/** Campos que se envían al crear o editar un evento (POST /events, PATCH /events/:id) */
+export interface EventInput {
+  name: string
+  summary: string
+  description: string
+  category: string                 // _id de la categoría
+  imageUrl: string | null
+  imageAlt: string
+  venueName: string
+  address: string
+  city: string
+  province: string
+  date: string                     // inicio, ISO
+  endDate: string | null
+  doorsOpenMinutes: number
+  capacity: number
+  price: number
+  maxPerPurchase: number
+  minAge: number
+  accessibility: AccessibilityFeature[]
+  importantInfo: string
+}
+
+/** Evento visto por su organizador: GET /organizer/events y /organizer/events/:id */
+export interface OrganizerEvent extends Omit<EventInput, 'category'> {
+  _id: string
+  category: Category | null
+  location: string
+  availableSpots: number
+  status: EventStatus
+  displayStatus: EventStatus       // 'finished' si ya pasó aunque siga 'published'
+  reserved: number
+  revenue: number
+  attendees: number                // reservaciones confirmadas (personas a notificar)
+  createdAt: string
+  updatedAt: string
+}
+
+export interface OrganizerEventList extends Paginated<OrganizerEvent> {
+  counts: { all: number, published: number, draft: number, finished: number, cancelled: number }
 }
 
 export interface Reservation {

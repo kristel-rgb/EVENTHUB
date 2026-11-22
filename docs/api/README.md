@@ -222,7 +222,9 @@ Detalle de un evento.
 **Reglas**
 
 - Devolver eventos `published`, `cancelled` y `finished`. El frontend muestra el motivo cuando no se puede comprar ("Este evento fue cancelado", "Este evento ya finalizó", "Ya no quedan espacios").
-- Los eventos `draft` **no** son públicos: responder **404** (salvo para su propio organizador o un admin).
+- Los eventos `draft` **no** son públicos: responder **404**.
+- **Vista previa:** con `?preview=1` se devuelve también un borrador, **solo** si quien pide es su organizador o un admin (con sesión). El frontend la abre en `/eventos/:id?vista=previa` para que la empresa organizadora apruebe el evento antes de publicarlo.
+- Incluye los campos ampliados del evento (`summary`, `imageAlt`, `venueName`, `address`, `city`, `province`, `endDate`, `doorsOpenMinutes`, `maxPerPurchase`, `minAge`, `accessibility`, `importantInfo`). Ver sección 2.11.
 
 **Errores**
 
@@ -476,6 +478,65 @@ Redirige a Google OAuth 2.0. Al volver (`/auth/google/callback`), el backend cre
 
 ---
 
+### 2.11 Gestión de eventos del organizador ("Mis eventos")
+
+Pantallas: `/organizador/eventos` (lista), `/organizador/eventos/nuevo` y `/organizador/eventos/:id/editar` (el mismo formulario). Todas piden sesión de **organizador o admin**; un organizador solo ve y cambia **sus** eventos (si no es suyo → `404`, no `403`, para no revelar que existe).
+
+**Flujo:** se crea como **borrador** → *Vista previa* (la empresa organizadora la revisa y aprueba) → *Publicar*. Si se edita un evento ya publicado, el cambio se ve de inmediato en el detalle, en Buscar y en el Inicio.
+
+#### Campos del evento que envía el formulario (`EventInput`)
+
+| Campo | Tipo | Para publicar | Notas |
+|---|---|---|---|
+| `name` | string | ✓ | 3–120 caracteres. Único campo obligatorio para guardar un borrador. |
+| `category` | ObjectId | ✓ | |
+| `summary` | string | ✓ | Una frase, máx. 160. Se muestra debajo del título. |
+| `description` | string | ✓ | Mín. 40 caracteres. Párrafos separados con `\n`. |
+| `imageUrl` / `imageAlt` | string \| null | — | Si hay imagen, `imageAlt` es obligatorio (accesibilidad). |
+| `date` | ISO 8601 | ✓ | Inicio. Debe ser futuro. El frontend envía hora de Costa Rica (`-06:00`). |
+| `endDate` | ISO \| null | — | Fin; debe ser después de `date`. |
+| `doorsOpenMinutes` | number | — | Minutos antes del inicio en que abren puertas (0–240). |
+| `venueName`, `address`, `city`, `province` | string | ✓ (menos `address`) | `province` es una de las 7 provincias. El backend arma `location = "venueName, city"`. |
+| `capacity` | number | ✓ | Entero ≥ 1. Al editar, **no menor** que lo ya reservado. |
+| `price` | number | ✓ | Entero ≥ 0 en colones. `0` = gratis. |
+| `maxPerPurchase` | number | — | 1–10. El detalle limita la cantidad con esto. |
+| `minAge` | number | — | `0` (todo público), `12`, `15` o `18`. |
+| `accessibility` | string[] | — | `wheelchair`, `parking`, `public_transport`, `sign_language`. |
+| `importantInfo` | string | — | Una indicación por línea. |
+
+#### Endpoints
+
+| Método | Ruta | Qué hace | Respuesta |
+|---|---|---|---|
+| `GET` | `/organizer/events?status=&q=&sort=&page=&limit=` | Lista propia. `status`: `published` \| `draft` \| `finished` \| `cancelled` (vacío = todos). `sort`: `date` (más próximo, por defecto) \| `recent` (creado recientemente) \| `occupancy` \| `revenue`. | `200` `{ items: OrganizerEvent[], page, limit, total, counts: { all, published, draft, finished, cancelled } }` |
+| `GET` | `/organizer/events/:id` | Un evento propio con todos sus campos (para el formulario). | `200` `OrganizerEvent` |
+| `POST` | `/events` | Crear. Siempre queda `draft`. | `201` `OrganizerEvent` |
+| `PATCH` | `/events/:id` | Editar. Si está `published` se valida **completo**. | `200` `OrganizerEvent` |
+| `DELETE` | `/events/:id` | Eliminar. **Solo borradores** (los demás se cancelan). | `204` |
+| `POST` | `/events/:id/publish` | `draft` → `published`. Valida que esté completo. | `200` `OrganizerEvent` |
+| `POST` | `/events/:id/cancel` | `published` → `cancelled`. Cancela reservaciones y entradas y avisa por correo a los asistentes. | `200` `{ event, notified }` |
+| `POST` | `/events/:id/duplicate` | Copia como **borrador** con nombre "(copia)", sin reservaciones. El frontend abre el formulario de la copia para cambiar fecha, hora, lugar o cualquier dato. | `201` `OrganizerEvent` |
+| `POST` | `/files/upload-intent` | `{ fileName, contentType, size }` → `{ uploadUrl, fileUrl }`. URL **prefirmada de S3**; el frontend hace `PUT uploadUrl` con el archivo y guarda `fileUrl` en `imageUrl`. Solo `image/jpeg`, `image/png`, `image/webp`, máx. 5 MB. | `200` |
+
+`OrganizerEvent` = todos los campos de arriba + `_id`, `category` (populado), `location`, `availableSpots`, `status`, `displayStatus` (`finished` si está publicado y la fecha ya pasó), `reserved`, `revenue`, `attendees`, `createdAt`, `updatedAt`.
+
+#### Errores
+
+| Status | code | Cuándo |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Datos inválidos (incluye bajar `capacity` por debajo de lo reservado). `details` = `{ campo: mensaje }` con los nombres de la API (`date`, `endDate`, `capacity`…); el frontend los marca en el formulario. |
+| 404 | `EVENT_NOT_FOUND` | No existe o no es del organizador. |
+| 409 | `EVENT_INCOMPLETE` | Publicar con datos faltantes. `details` igual que arriba. El frontend lleva al formulario con `?revisar=1`. |
+| 409 | `EVENT_NOT_EDITABLE` | Editar un evento `cancelled` o `finished`. |
+| 409 | `EVENT_NOT_DRAFT` | Publicar algo que no es borrador. |
+| 409 | `EVENT_NOT_DELETABLE` | Eliminar algo que no es borrador (los publicados se cancelan). |
+| 409 | `EVENT_NOT_CANCELLABLE` | Cancelar algo que no está publicado o ya pasó. |
+| 400 | `INVALID_FILE_TYPE` / `FILE_TOO_LARGE` / `EMPTY_FILE` | Imagen inválida. |
+
+> Para confirmar la cancelación, el frontend pide escribir el nombre del evento. No hace falta que el backend lo valide.
+
+---
+
 ## 3. Endpoints que el frontend VA a necesitar (propuesta)
 
 Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del documento de división de tareas (sección 11). **Son propuestas:** si el backend prefiere otra forma, avisen antes de programarla.
@@ -508,18 +569,11 @@ Por decidir entre los dos:
 |---|---|---|
 | `POST` | `/reservations/:id/cancel` | Cancelar desde "Mis entradas". Devuelve los espacios de forma atómica (`$inc`), pasa las entradas a `cancelled` y envía el correo de cancelación. Reglas de cancelación: **pendientes de decidir**. |
 | `POST` | `/tickets/validate` | `{ qrValue }`. Para el organizador en la puerta: verifica la firma, que la entrada sea de un evento suyo y que no esté usada. La marca `used` con `usedAt`. Errores: `TICKET_INVALID`, `TICKET_ALREADY_USED`, `TICKET_CANCELLED`. |
-| `GET` | `/organizer/events` | Eventos del organizador (todos los estados), paginado. |
 | `GET` | `/organizer/events/:id/reservations` | Reservaciones de **un evento suyo**, paginado. |
 
 ### 3.3 Gestión de eventos del organizador (Persona 3 y Persona 4)
 
-| Método | Ruta | Notas |
-|---|---|---|
-| `POST` | `/events` | Crear evento (`draft` por defecto). Body con los campos del modelo Event. |
-| `PATCH` | `/events/:id` | Editar. Solo el dueño o un admin. |
-| `POST` | `/events/:id/publish` | `draft` → `published`. |
-| `POST` | `/events/:id/cancel` | → `cancelled`. Notifica a los asistentes por correo. |
-| `POST` | `/files/upload-intent` | `{ fileName, contentType }` → `{ uploadUrl, fileUrl }`. URL **prefirmada de S3**: el frontend sube la imagen directo con `PUT uploadUrl` y luego guarda `fileUrl` como `imageUrl` del evento. Validar tipo (`image/jpeg`, `image/png`, `image/webp`) y tamaño máximo. |
+**Ya definidos** en la sección 2.11 (crear, editar, publicar, cancelar, duplicar, eliminar borrador y subir imagen). Lo que falta acá es solo el correo de cancelación a los asistentes (Persona 4).
 
 ### 3.4 Comentarios y calificaciones (Persona 3)
 
