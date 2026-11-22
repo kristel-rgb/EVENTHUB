@@ -323,40 +323,60 @@ Todas las entradas del usuario con sesión (activas e historial).
 
 ### 2.7 `GET /organizer/stats`
 
-Estadísticas del panel del organizador. **Requiere sesión de Organizador.** Se calculan **solo con los eventos del organizador que hace la petición** (sacarlo del token, no de un parámetro).
+Datos del dashboard del organizador. **Requiere sesión de Organizador** (o Admin). Se calcula **solo con los eventos del organizador que hace la petición** (sacarlo del token, no de un parámetro).
+
+**Query params**
+
+| Parámetro | Valores | Descripción |
+|---|---|---|
+| `period` | `7` \| `30` \| `90` | Días hacia atrás desde hoy. Por defecto `30`. El "periodo anterior" son los mismos días justo antes. |
 
 **Respuesta 200**
 
 ```json
 {
-  "eventsCreated": 11,
-  "activeEvents": 7,
-  "reservations": 413,
-  "availableSpots": 428,
-  "occupancyRate": 62,
-  "upcomingEvents": [
-    { "_id": "6740a0a0...", "name": "Noche de jazz en vivo", "date": "2026-11-26T02:00:00.000Z", "capacity": 120, "reserved": 112, "status": "published" }
+  "period": 30,
+  "organizerName": "Sonido Vivo Producciones",
+  "kpis": {
+    "revenue":       { "value": 15360000, "previous": 12688000, "series": [2100000, 2650000, 2400000, 2900000, 2700000, 2610000] },
+    "ticketsSold":   { "value": 1936, "previous": 1520, "series": [260, 330, 300, 362, 340, 344] },
+    "occupancyRate": { "value": 78, "previous": 35, "series": [42, 50, 57, 64, 71, 78] },
+    "events":        { "active": 8, "draft": 1, "cancelled": 1 }
+  },
+  "nextEvent": { "_id": "...", "name": "Noche de jazz en vivo", "date": "2026-11-28T02:00:00.000Z", "location": "Jazz Café, Escazú", "capacity": 120, "reserved": 112 },
+  "sales": {
+    "current":  [ { "start": "2026-10-23T06:00:00.000Z", "tickets": 260, "revenue": 2100000 } ],
+    "previous": [ { "start": "2026-09-23T06:00:00.000Z", "tickets": 210, "revenue": 1800000 } ]
+  },
+  "alerts": [
+    { "type": "almost_full", "eventId": "...", "title": "Noche de jazz en vivo casi lleno", "message": "93 % · quedan 8 espacios" },
+    { "type": "drafts", "eventId": null, "title": "1 evento en borrador", "message": "Publicalos para empezar a vender." }
   ],
-  "reservationsByWeek": [
-    { "week": "S1", "count": 34 }, { "week": "S2", "count": 41 },
-    { "week": "S3", "count": 38 }, { "week": "S4", "count": 52 },
-    { "week": "S5", "count": 47 }, { "week": "S6", "count": 60 },
-    { "week": "S7", "count": 71 }, { "week": "S8", "count": 70 }
+  "recentActivity": [
+    { "_id": "...", "type": "reservation", "userName": "Ana M.", "quantity": 2, "eventId": "...", "eventName": "Noche de jazz en vivo", "createdAt": "2026-11-22T05:58:00.000Z" }
+  ],
+  "events": [
+    { "_id": "...", "name": "Noche de jazz en vivo", "date": "2026-11-28T02:00:00.000Z", "status": "published", "capacity": 120, "reserved": 112, "revenue": 1008000 }
   ]
 }
 ```
 
-| Campo | Cómo se calcula |
-|---|---|
-| `eventsCreated` | Todos los eventos del organizador (cualquier estado). |
-| `activeEvents` | Eventos `published` con fecha futura. |
-| `reservations` | Cantidad de **reservaciones** `confirmed` de sus eventos (documentos, no entradas). |
-| `availableSpots` | Suma de `availableSpots` de sus eventos activos. |
-| `occupancyRate` | `round(espacios reservados / capacidad total × 100)` de sus eventos activos. Entero 0–100. |
-| `upcomingEvents` | Hasta **5** eventos futuros no cancelados, por fecha ascendente. `reserved` = espacios reservados (suma de `quantity` confirmadas). |
-| `reservationsByWeek` | **8** elementos, de la semana más antigua (`S1`) a la actual (`S8`), contando reservaciones confirmadas creadas en cada semana. |
+**Cómo se calcula cada parte**
 
-> Son agregaciones de MongoDB (`$match`, `$group`, `$sum`). El enunciado exige que sean **consultas reales**, no datos fijos.
+| Campo | Cálculo |
+|---|---|
+| `kpis.revenue` | Suma de `quantity × event.price` de las reservaciones `confirmed` **creadas** en el periodo. `previous`: lo mismo en el periodo anterior. |
+| `kpis.ticketsSold` | Suma de `quantity` de las reservaciones `confirmed` creadas en el periodo (y en el anterior). |
+| `kpis.occupancyRate` | `round(espacios reservados / capacidad total × 100)` de los eventos **activos** (publicados y futuros). `value` = hoy; `previous` = al inicio del periodo. Entero 0–100. |
+| `…series` | Un valor por tramo, en el mismo orden que `sales.current`. Para la ocupación, el valor al final de cada tramo. |
+| `kpis.events` | `active`: publicados y futuros · `draft`: borradores · `cancelled`: cancelados con fecha futura. |
+| `nextEvent` | El evento publicado más próximo, o `null`. `reserved` = suma de `quantity` confirmadas. |
+| `sales.current` / `sales.previous` | Tramos del periodo. **7 días:** 7 tramos de 1 día. **30 días:** 6 tramos de 5 días. **90 días:** 13 tramos de 7 días. `start` = inicio del tramo. |
+| `alerts` | Máximo 4, en este orden: `sold_out` (sin espacios), `almost_full` (≥ 90 %), `low_sales` (< 35 % y faltan 21 días o menos), `drafts` (cuántos borradores hay; `eventId: null`). `title` y `message` en español, listos para mostrar. |
+| `recentActivity` | Las 6 reservaciones más recientes de sus eventos (incluye canceladas, `type: "cancellation"`). `userName` = nombre y **solo la inicial** del apellido (privacidad). |
+| `events` | Sus eventos futuros y sus borradores, por fecha. `revenue` = espacios reservados × precio. |
+
+> Son agregaciones de MongoDB (`$match`, `$group`, `$sum`, `$bucket` o `$dateTrunc`). El enunciado exige que sean **consultas reales**, no datos fijos.
 
 ---
 

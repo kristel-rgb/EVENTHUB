@@ -165,21 +165,41 @@ export interface ApiError {
   details?: unknown
 }
 
-export interface OrganizerUpcomingEvent {
-  _id: string
-  name: string
-  date: string
-  capacity: number
-  reserved: number
-  status: EventStatus
+/** Indicador con su valor del periodo, el del periodo anterior y la serie para la mini gráfica */
+export interface KpiValue {
+  value: number
+  previous: number
+  series: number[]
 }
 
+export interface SalesBucket {
+  start: string       // inicio del tramo (ISO)
+  tickets: number
+  revenue: number     // colones
+}
+
+export type OrganizerAlertType = 'almost_full' | 'sold_out' | 'low_sales' | 'drafts'
+
 export interface OrganizerStats {
-  eventsCreated: number
-  activeEvents: number
-  reservations: number
-  availableSpots: number
-  occupancyRate: number   // 0 a 100
-  upcomingEvents: OrganizerUpcomingEvent[]
-  reservationsByWeek: { week: string, count: number }[]
+  period: 7 | 30 | 90
+  organizerName: string
+  kpis: {
+    revenue: KpiValue
+    ticketsSold: KpiValue
+    occupancyRate: KpiValue        // 0 a 100
+    events: { active: number, draft: number, cancelled: number }
+  }
+  nextEvent: { _id: string, name: string, date: string, location: string, capacity: number, reserved: number } | null
+  sales: { current: SalesBucket[], previous: SalesBucket[] }
+  alerts: { type: OrganizerAlertType, eventId: string | null, title: string, message: string }[]
+  recentActivity: {
+    _id: string
+    type: 'reservation' | 'cancellation'
+    userName: string               // nombre abreviado, por ejemplo "Ana M."
+    quantity: number
+    eventId: string
+    eventName: string
+    createdAt: string
+  }[]
+  events: { _id: string, name: string, date: string, status: EventStatus, capacity: number, reserved: number, revenue: number }[]
 }
