@@ -139,7 +139,11 @@ const unavailableReason = computed(() => {
           </div>
         </div>
 
-        <div v-if="canBuy && !session.isLoggedIn" class="buy__guest">
+        <p v-if="canBuy && session.role === 'organizer'" class="buy__closed">
+          Las cuentas de organización no compran entradas. Para comprar, usá una cuenta de cliente.
+        </p>
+
+        <div v-else-if="canBuy && !session.isLoggedIn" class="buy__guest">
           <p><Icon name="lucide:lock" size="16" /> Para comprar entradas necesitás una cuenta. Es gratis y toma un minuto.</p>
           <NuxtLink :to="loginTo" class="btn btn--primary buy__cta">Ingresar para comprar</NuxtLink>
           <NuxtLink :to="registerTo" class="btn btn--outline">Crear cuenta</NuxtLink>

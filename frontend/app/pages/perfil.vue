@@ -114,7 +114,7 @@ const maskedId = computed(() => {
         </p>
       </div>
       <nav class="head__links" aria-label="Accesos">
-        <NuxtLink to="/mis-entradas" class="btn btn--outline"><Icon name="lucide:ticket" size="16" /> Mis entradas</NuxtLink>
+        <NuxtLink v-if="user.role !== 'organizer'" to="/mis-entradas" class="btn btn--outline"><Icon name="lucide:ticket" size="16" /> Mis entradas</NuxtLink>
         <NuxtLink v-if="canOrganize(user.role)" to="/organizador" class="btn btn--outline"><Icon name="lucide:layout-dashboard" size="16" /> Organizar eventos</NuxtLink>
       </nav>
     </header>

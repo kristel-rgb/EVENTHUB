@@ -15,6 +15,7 @@ const menus: Record<'organizer' | 'admin', NavItem[]> = {
     { to: '/organizador/eventos', label: 'Mis eventos', icon: 'lucide:calendar-days' },
     { to: '/organizador/reservaciones', label: 'Reservaciones', icon: 'lucide:ticket' },
     { to: '/organizador/validar', label: 'Validar entradas', icon: 'lucide:scan-line' },
+    { to: '/buscar', label: 'Buscar eventos', icon: 'lucide:search' },
   ],
   admin: [
     { to: '/admin', label: 'Resumen', icon: 'lucide:layout-dashboard' },
@@ -30,6 +31,8 @@ const items = computed(() => menus[(route.meta.panel as 'organizer' | 'admin') ?
 
 const session = useSessionStore()
 const { logout } = useAuth()
+// La Organización no tiene sitio público al que volver (no usa Inicio ni Mis entradas)
+const showBack = computed(() => session.role !== 'organizer')
 const who = computed(() => session.user?.organizationName || session.user?.name || '')
 </script>
 
@@ -61,7 +64,7 @@ const who = computed(() => session.user?.organizationName || session.user?.name 
           <Icon :name="item.icon" size="22" />
           <span class="panel-nav__label">{{ item.label }}</span>
         </NuxtLink>
-        <NuxtLink to="/" class="panel-nav__link panel-nav__back">
+        <NuxtLink v-if="showBack" to="/" class="panel-nav__link panel-nav__back">
           <Icon name="lucide:arrow-left" size="22" />
           <span class="panel-nav__label">Volver al sitio</span>
         </NuxtLink>
@@ -108,6 +111,8 @@ const who = computed(() => session.user?.organizationName || session.user?.name 
 .panel-nav__link:hover { background: var(--surface-dark-2); color: var(--color-sand); }
 .panel-nav__link.is-active { background: var(--color-sand); color: var(--color-ink); }
 .panel-nav__back { margin-top: auto; }
+.panel-nav__back + .panel-nav__me { margin-top: 0; }
+.panel-nav__me { margin-top: auto; }
 .panel-nav__logout { border: 0; background: transparent; cursor: pointer; font: inherit; }
 .panel-nav__avatar {
   width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
@@ -126,6 +131,8 @@ const who = computed(() => session.user?.organizationName || session.user?.name 
 .panel-nav__link:focus-visible .panel-nav__label { opacity: 1; }
 
 .panel-main { flex: 1 1 0; min-width: 0; padding: 28px 36px 48px; }
+/* Páginas públicas que la Organización abre dentro del panel (Buscar, detalle, Perfil): sin doble margen */
+.panel-main :deep(.container) { padding-left: 0; padding-right: 0; }
 
 /* ---------- Celular: barra arriba con menú desplegable y nombres visibles ---------- */
 @media (max-width: 860px) {

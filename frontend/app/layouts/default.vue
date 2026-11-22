@@ -17,9 +17,10 @@ const { logout } = useAuth()
 //   cliente → + Mis entradas · Perfil, Cerrar sesión
 //   organización y super admin → + Organizar eventos
 const links = computed(() => nav.filter(l =>
-  l.show === 'all'
+  !(session.role === 'organizer' && (l.to === '/' || l.to === '/mis-entradas'))
+  && (l.show === 'all'
   || (l.show === 'user' && session.isLoggedIn)
-  || (l.show === 'organizer' && canOrganize(session.role)),
+  || (l.show === 'organizer' && canOrganize(session.role))),
 ))
 const firstName = computed(() => session.user?.organizationName || session.user?.firstName || session.user?.username || '')
 const loggingOut = ref(false)

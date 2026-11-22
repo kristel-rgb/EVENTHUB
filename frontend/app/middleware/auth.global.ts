@@ -10,6 +10,16 @@ export default defineNuxtRouteMiddleware((to) => {
   const session = useSessionStore()
   const role = session.role
 
+  // La Organización solo usa su panel: no tiene Inicio ni Mis entradas,
+  // y Buscar, el detalle de un evento y su Perfil se muestran con la barra de íconos del panel.
+  if (role === 'organizer') {
+    if (to.path === '/' || to.path === '/mis-entradas') return navigateTo('/organizador', { replace: true })
+    if (to.path === '/buscar' || to.path.startsWith('/eventos/') || to.path === '/perfil') {
+      to.meta.layout = 'panel'
+      to.meta.panel = 'organizer'
+    }
+  }
+
   if (to.meta.guestOnly && session.isLoggedIn) {
     return navigateTo(safeRedirect(to.query.redirect) ?? homeForRole(role), { replace: true })
   }
