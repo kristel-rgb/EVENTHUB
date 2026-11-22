@@ -178,7 +178,7 @@ async function confirmCancel() {
                 <Icon name="lucide:clock" size="14" /> {{ formatTime(e.ticket.event.date) }}
                 <Icon name="lucide:map-pin" size="14" /> {{ e.ticket.event.location }}
               </span>
-              <span class="tk__code">{{ e.ticket.code }} · Entrada {{ e.n }} de {{ e.of }}</span>
+              <span class="tk__code">{{ e.ticket.code }}<template v-if="e.ticket.reservation.ticketTypeName"> · {{ e.ticket.reservation.ticketTypeName }}</template> · Entrada {{ e.n }} de {{ e.of }}</span>
             </span>
 
             <span class="tk__side">
@@ -204,10 +204,13 @@ async function confirmCancel() {
           <button type="button" class="btn btn--outline" :disabled="resending" @click="resend">
             <Icon :name="resending ? 'lucide:loader-circle' : 'lucide:mail'" size="16" /> Reenviarme las entradas
           </button>
-          <button type="button" class="btn btn--ghost manage__cancel" @click="askCancelSelected">
+          <button v-if="selected?.ticket.reservation.canCancel !== false" type="button" class="btn btn--ghost manage__cancel" @click="askCancelSelected">
             <Icon name="lucide:ban" size="16" /> Cancelar reservación
           </button>
         </div>
+        <p v-if="selected?.ticket.reservation.canCancel === false && selected.ticket.reservation.cancelBlockedReason" class="manage__policy">
+          <Icon name="lucide:info" size="14" /> {{ selected.ticket.reservation.cancelBlockedReason }}
+        </p>
       </div>
     </template>
   </TicketModal>
@@ -306,6 +309,7 @@ async function confirmCancel() {
 .manage__btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .manage__btns .btn:disabled { opacity: 0.6; cursor: progress; }
 .manage__cancel { color: var(--color-raspberry-dark); }
+.manage__policy { margin: 0; display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 0.8125rem; color: var(--text-secondary); text-align: center; }
 .manage__msg { margin: 0; padding: 10px 12px; border-radius: var(--radius-md); font-size: 0.875rem; text-align: center; }
 .manage__msg--ok { background: var(--tint-forest); color: var(--color-forest-dark); }
 .manage__msg--error { background: var(--tint-raspberry); color: var(--color-raspberry-dark); }

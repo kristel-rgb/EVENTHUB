@@ -65,14 +65,34 @@ const accessIcons: Record<string, string> = {
 }
 const importantLines = computed(() => (event.value!.importantInfo ?? '').split('\n').map(l => l.trim()).filter(Boolean))
 
+// Tipos de entrada (General, VIP…): se elige uno y la cantidad
+const types = computed(() => event.value!.ticketTypes ?? [])
+const manyTypes = computed(() => types.value.length > 1)
+const selectedTypeId = ref<string | null>(types.value.find(t => t.available > 0)?._id ?? types.value[0]?._id ?? null)
+const selectedType = computed(() => types.value.find(t => t._id === selectedTypeId.value) ?? null)
+watch(types, (list) => {
+  if (!list.some(t => t._id === selectedTypeId.value && t.available > 0)) selectedTypeId.value = list.find(t => t.available > 0)?._id ?? null
+})
+const minPrice = computed(() => (types.value.length ? Math.min(...types.value.map(t => t.price)) : event.value!.price))
+
+// Política de cancelación y contacto
+const policyText = computed(() => cancellationOptions.find(o => o.value === event.value!.cancellationPolicy)?.text ?? null)
+const mapEmbed = computed(() => {
+  const e = event.value!
+  const q = [e.venueName, e.address, e.city ?? e.location, e.province].filter(Boolean).join(', ') || e.location
+  return `https://www.google.com/maps?q=${encodeURIComponent(q + ', Costa Rica')}&output=embed`
+})
+
 // Compra
 const quantity = ref(1)
-const maxQuantity = computed(() => Math.min(event.value!.maxPerPurchase ?? text.maxPerPurchase, event.value!.availableSpots))
-const total = computed(() => event.value!.price * quantity.value)
+const unitPrice = computed(() => selectedType.value?.price ?? event.value!.price)
+const maxQuantity = computed(() => Math.min(event.value!.maxPerPurchase ?? text.maxPerPurchase, selectedType.value?.available ?? event.value!.availableSpots))
+watch(maxQuantity, (m) => { if (quantity.value > m) quantity.value = Math.max(1, m) })
+const total = computed(() => unitPrice.value * quantity.value)
 const { reserve, loading, errorMessage, result } = useReserve()
 
 async function buy() {
-  await reserve(id, quantity.value)
+  await reserve(id, quantity.value, selectedType.value?._id)
   if (result.value) {
     quantity.value = 1
     await refresh() // actualiza los espacios disponibles
@@ -116,8 +136,8 @@ const unavailableReason = computed(() => {
       <!-- Tarjeta de compra -->
       <aside class="buy card" aria-labelledby="buy-title">
         <h2 id="buy-title" class="sr-only">Comprar entradas</h2>
-        <p class="buy__price">{{ formatPrice(event.price) }}</p>
-        <p class="buy__per">{{ event.price > 0 ? 'por entrada' : 'entrada libre con reserva' }}</p>
+        <p class="buy__price"><span v-if="manyTypes" class="buy__from">Desde</span> {{ formatPrice(minPrice) }}</p>
+        <p class="buy__per">{{ minPrice > 0 ? 'por entrada' : 'entrada libre con reserva' }}</p>
 
         <div class="buy__spots">
           <div class="buy__spots-top">
@@ -150,6 +170,16 @@ const unavailableReason = computed(() => {
         </div>
 
         <form v-else-if="canBuy" class="buy__form" @submit.prevent="buy">
+          <fieldset v-if="manyTypes" class="types">
+            <legend>Tipo de entrada</legend>
+            <label v-for="t in types" :key="t._id" class="type" :class="{ 'is-on': selectedTypeId === t._id, 'is-out': t.available === 0 }">
+              <input v-model="selectedTypeId" type="radio" name="ticketType" :value="t._id" :disabled="t.available === 0" class="sr-only">
+              <span class="type__name">{{ t.name }}</span>
+              <span class="type__price">{{ t.price ? formatPrice(t.price) : 'Gratis' }}</span>
+              <span class="type__left" :class="{ 'is-low': t.available > 0 && t.available <= 10 }">{{ t.available === 0 ? 'Agotado' : `Quedan ${t.available}` }}</span>
+            </label>
+          </fieldset>
+
           <div class="qty">
             <label for="qty" class="qty__label">Cantidad</label>
             <div class="qty__ctrl">
@@ -163,7 +193,7 @@ const unavailableReason = computed(() => {
             </div>
           </div>
 
-          <div v-if="event.price > 0" class="buy__total">
+          <div v-if="unitPrice > 0" class="buy__total">
             <span>Total</span><strong>{{ formatPrice(total) }}</strong>
           </div>
 
@@ -171,7 +201,7 @@ const unavailableReason = computed(() => {
 
           <button type="submit" class="btn btn--primary buy__cta" :disabled="loading">
             <Icon v-if="loading" name="lucide:loader-circle" size="18" class="spin" />
-            {{ loading ? 'Procesando…' : event.price > 0 ? text.buyLabel : text.freeLabel }}
+            {{ loading ? 'Procesando…' : unitPrice > 0 ? text.buyLabel : text.freeLabel }}
           </button>
         </form>
 
@@ -214,7 +244,14 @@ const unavailableReason = computed(() => {
 
         <section aria-labelledby="policy-title" class="detail__policy">
           <h2 id="policy-title">Antes de comprar</h2>
+          <p v-if="policyText" class="detail__policy-main"><Icon name="lucide:calendar-x" size="16" /> {{ policyText }}</p>
           <p>{{ text.policy }}</p>
+        </section>
+
+        <section aria-labelledby="map-title" class="detail__map">
+          <h2 id="map-title">Cómo llegar</h2>
+          <iframe :src="mapEmbed" :title="`Mapa de ${event.venueName || event.location}`" loading="lazy" referrerpolicy="no-referrer-when-downgrade" />
+          <a :href="mapUrl" target="_blank" rel="noopener">Abrir en Google Maps <Icon name="lucide:external-link" size="14" /></a>
         </section>
       </div>
 
@@ -248,7 +285,17 @@ const unavailableReason = computed(() => {
         </div>
         <div class="fact">
           <dt><Icon name="lucide:users" size="18" /> Capacidad</dt>
-          <dd>{{ event.capacity }} personas</dd>
+          <dd>
+            {{ formatNumber(event.capacity) }} personas
+            <span v-if="manyTypes" class="fact__sub">{{ types.map(t => t.name).join(' · ') }}</span>
+          </dd>
+        </div>
+        <div v-if="event.contactEmail || event.contactPhone" class="fact">
+          <dt><Icon name="lucide:mail" size="18" /> Consultas</dt>
+          <dd>
+            <a v-if="event.contactEmail" :href="`mailto:${event.contactEmail}`">{{ event.contactEmail }}</a>
+            <a v-if="event.contactPhone" :href="`tel:${event.contactPhone}`" class="fact__sub">{{ event.contactPhone }}</a>
+          </dd>
         </div>
         <div class="fact">
           <dt><Icon name="lucide:id-card" size="18" /> Edad</dt>
@@ -311,6 +358,26 @@ const unavailableReason = computed(() => {
 .detail__about h2, .detail__policy h2 { font-size: 1.375rem; margin-bottom: 10px; }
 .detail__about p { font-size: 1.0625rem; line-height: 1.7; margin: 0 0 12px; }
 .detail__policy p { color: var(--text-secondary); margin: 0; }
+.detail__policy .detail__policy-main { display: flex; gap: 8px; align-items: flex-start; color: var(--color-ink); font-weight: 600; margin-bottom: 8px; }
+.detail__policy-main :deep(svg) { flex-shrink: 0; margin-top: 3px; color: var(--color-raspberry); }
+.detail__map { margin-top: 28px; }
+.detail__map h2 { font-size: 1.375rem; margin-bottom: 10px; }
+.detail__map iframe { width: 100%; height: 280px; border: 0; border-radius: var(--radius-md); display: block; background: var(--tint-neutral); }
+.detail__map a { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-weight: 600; font-size: 0.875rem; }
+.buy__from { font-family: var(--font-body); font-size: 1rem; font-weight: 600; color: var(--text-secondary); letter-spacing: 0; }
+.types { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.types legend { padding: 0; margin-bottom: 8px; font-weight: 500; }
+.type {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 10px 12px; cursor: pointer;
+  border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--color-white);
+}
+.type.is-on { border-color: var(--color-forest); box-shadow: 0 0 0 2px var(--tint-forest); }
+.type:focus-within { outline: 3px solid var(--color-raspberry); outline-offset: 2px; }
+.type.is-out { opacity: 0.55; cursor: not-allowed; }
+.type__name { font-weight: 600; }
+.type__price { font-weight: 700; text-align: right; }
+.type__left { grid-column: 1 / -1; font-size: 0.8125rem; color: var(--text-secondary); }
+.type__left.is-low { color: var(--color-raspberry-dark); font-weight: 600; }
 .detail__summary { font-size: 1.1875rem; line-height: 1.5; color: var(--text-secondary); margin: 0 0 8px; max-width: 60ch; }
 .detail__info, .detail__access { margin-top: 28px; }
 .detail__info h2, .detail__access h2 { font-size: 1.375rem; margin-bottom: 10px; }

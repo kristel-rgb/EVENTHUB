@@ -112,10 +112,29 @@ export interface EventItem {
   minAge?: number                  // 0 = todo público
   accessibility?: AccessibilityFeature[]
   importantInfo?: string
+  ticketTypes?: TicketType[]
+  cancellationPolicy?: CancellationPolicy
+  contactEmail?: string
+  contactPhone?: string
   updatedAt?: string
 }
 
 export type AccessibilityFeature = 'wheelchair' | 'parking' | 'public_transport' | 'sign_language'
+
+/** Tipo de entrada de un evento (General, VIP, Preventa…) */
+export interface TicketType {
+  _id: string
+  name: string
+  price: number          // colones, 0 = gratis
+  capacity: number       // cupos de este tipo
+  available: number      // espacios libres de este tipo
+  sold?: number          // solo en la vista del organizador
+}
+/** Lo que manda el formulario: _id solo si el tipo ya existía */
+export interface TicketTypeInput { _id?: string, name: string, price: number, capacity: number }
+
+/** Hasta cuándo puede cancelar el cliente */
+export type CancellationPolicy = 'until_start' | '24h' | '48h' | '7d' | 'none'
 
 /** Campos que se envían al crear o editar un evento (POST /events, PATCH /events/:id) */
 export interface EventInput {
@@ -132,19 +151,24 @@ export interface EventInput {
   date: string                     // inicio, ISO
   endDate: string | null
   doorsOpenMinutes: number
-  capacity: number
-  price: number
+  ticketTypes: TicketTypeInput[]
   maxPerPurchase: number
   minAge: number
   accessibility: AccessibilityFeature[]
   importantInfo: string
+  cancellationPolicy: CancellationPolicy
+  contactEmail: string
+  contactPhone: string
 }
 
 /** Evento visto por su organizador: GET /organizer/events y /organizer/events/:id */
-export interface OrganizerEvent extends Omit<EventInput, 'category'> {
+export interface OrganizerEvent extends Omit<EventInput, 'category' | 'ticketTypes'> {
   _id: string
   category: Category | null
   location: string
+  ticketTypes: TicketType[]        // con `sold`
+  capacity: number                 // suma de los cupos de los tipos
+  price: number                    // precio más bajo
   availableSpots: number
   status: EventStatus
   displayStatus: EventStatus       // 'finished' si ya pasó aunque siga 'published'
@@ -164,6 +188,7 @@ export interface Reservation {
   event: DocRef
   user: DocRef
   quantity: number
+  ticketTypeName?: string
   total: number
   status: ReservationStatus
   paymentStatus: PaymentStatus
@@ -175,6 +200,7 @@ export interface ReservationItem {
   _id: string
   code: string                     // R-1A2B
   quantity: number
+  ticketTypeName: string           // General, VIP…
   unitPrice: number
   total: number
   status: ReservationStatus
@@ -232,7 +258,14 @@ export interface TicketItem {
     status: EventStatus
     category: Category
   }
-  reservation: { _id: string, quantity: number, createdAt: string }
+  reservation: {
+    _id: string
+    quantity: number
+    createdAt: string
+    ticketTypeName?: string
+    canCancel?: boolean               // la política del evento todavía permite cancelar
+    cancelBlockedReason?: string | null
+  }
   holder: DocRef
 }
 
@@ -324,7 +357,7 @@ export interface CheckinEvent {
 
 /** Resultado de escanear una entrada (también viene en `details` cuando se rechaza) */
 export interface ScanInfo {
-  ticket: { _id: string, code: string, position: { n: number, of: number } }
+  ticket: { _id: string, code: string, position: { n: number, of: number }, typeName?: string }
   holder: { name: string }
   reservation: { code: string, paymentStatus: PaymentStatus }
   usedAt: string | null

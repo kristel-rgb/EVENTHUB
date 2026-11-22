@@ -131,9 +131,13 @@ Perfil **completo** del usuario. Además de identificarlo, son los datos que la 
 | `imageUrl` | String \| null | — | URL de S3 (Persona 4). `null` = sin imagen. |
 | `location` | String | ✓ | Formato **"Lugar, Ciudad"**, por ejemplo `Centro de Eventos Pedregal, Belén`. El filtro "Lugar" compara el texto **exacto**, así que conviene que el mismo lugar se escriba siempre igual. |
 | `date` | Date | ✓ | Fecha y hora de inicio (UTC). |
-| `capacity` | Number | ✓ | Entero ≥ 1. |
-| `availableSpots` | Number | ✓ | Entero entre 0 y `capacity`. Al crear = `capacity`. **Solo se modifica con `$inc` atómico** (ver regla 4.1). |
-| `price` | Number | ✓ | Entero ≥ 0, en colones. `0` = gratis. |
+| `ticketTypes` | [subdocumento] | ✓ (1 a 6) | Tipos de entrada: `{ _id, name, price, capacity, available }`. `name` único en el evento (2–40); `price` entero ≥ 0 en colones; `capacity` entero ≥ 1; `available` entre 0 y `capacity`, **solo se modifica con `$inc` atómico** (regla 4.1). |
+| `capacity` | Number | ✓ | **Calculado:** suma de `ticketTypes.capacity`. Se guarda para ordenar y filtrar rápido. |
+| `availableSpots` | Number | ✓ | **Calculado:** suma de `ticketTypes.available`. Se actualiza en el mismo `$inc` que el tipo. |
+| `price` | Number | ✓ | **Calculado:** precio más bajo de los tipos ("desde"). `0` = gratis. |
+| `cancellationPolicy` | String enum | ✓ | `until_start` \| `24h` \| `48h` \| `7d` \| `none`. Por defecto `48h`. Solo limita al cliente. |
+| `contactEmail` | String | publicar | Correo para consultas. |
+| `contactPhone` | String | — | 8 dígitos. |
 | `status` | String enum | ✓ | `draft` \| `published` \| `cancelled` \| `finished`. Por defecto `draft`. |
 | `organizer` | ObjectId → `User` | ✓ | Usuario con `role: organizer` (o el admin). |
 | `summary` | String | publicar | Una frase, máx. 160 caracteres. |
@@ -180,6 +184,8 @@ Perfil **completo** del usuario. Además de identificarlo, son los datos que la 
 | `event` | ObjectId → `Event` | ✓ | |
 | `user` | ObjectId → `User` | ✓ | El asistente que reservó. |
 | `quantity` | Number | ✓ | Entero de 1 a `event.maxPerPurchase` (máx. 10). |
+| `ticketType` | ObjectId | ✓ | `_id` del tipo dentro de `event.ticketTypes`. |
+| `ticketTypeName` | String | ✓ | Copia del nombre del tipo (si el organizador lo renombra, se actualiza). |
 | `unitPrice` | Number | ✓ | Precio por entrada **al momento de comprar** (colones). Si el organizador cambia el precio después, las compras viejas no cambian. |
 | `total` | Number | ✓ | `unitPrice × quantity`. |
 | `status` | String enum | ✓ | `pending` (esperando pago, guarda los espacios) \| `confirmed` \| `cancelled`. |
@@ -322,10 +328,11 @@ Historial de cambios importantes de eventos **publicados**. Alimenta las "Noveda
 ### 4.1 Reservar sin sobreventa
 
 ```js
-// 1) Descontar el cupo de forma atómica (solo si alcanza)
+// 1) Descontar el cupo del TIPO y del evento de forma atómica (solo si alcanza en ese tipo)
 const event = await Event.findOneAndUpdate(
-  { _id: eventId, status: 'published', date: { $gt: new Date() }, availableSpots: { $gte: quantity } },
-  { $inc: { availableSpots: -quantity } },
+  { _id: eventId, status: 'published', date: { $gt: new Date() },
+    ticketTypes: { $elemMatch: { _id: ticketTypeId, available: { $gte: quantity } } } },
+  { $inc: { 'ticketTypes.$.available': -quantity, availableSpots: -quantity } },
   { new: true, session }
 )
 if (!event) throw conflict('NOT_ENOUGH_SPOTS') // o evento no disponible
@@ -343,7 +350,8 @@ La puede cancelar **el cliente** (desde Mis entradas), **el organizador** del ev
 - Solo si `status` es `pending` o `confirmed`, el evento **no ha ocurrido** y **ninguna** de sus entradas está `used`.
 - `reservation.status → cancelled`, `cancelledAt = now`, `cancelledBy = customer | organizer | system`.
 - Sus entradas `active` pasan a `cancelled`.
-- Devolver el cupo con `$inc: { availableSpots: +quantity }`, sin pasarse de `capacity`. Hacerlo en la **misma transacción** que el cambio de estado, para no devolver dos veces si dos personas cancelan a la vez (filtrar por `status: { $ne: 'cancelled' }` en el `findOneAndUpdate`).
+- Devolver el cupo **al tipo y al evento** con `$inc: { 'ticketTypes.$[t].available': +quantity, availableSpots: +quantity }` (`arrayFilters: [{ 't._id': reservation.ticketType }]`), sin pasarse de los cupos.
+- **El cliente** solo puede cancelar dentro del plazo de `event.cancellationPolicy` (una reservación pendiente de pago, siempre). El organizador y el sistema no tienen ese límite. Hacerlo en la **misma transacción** que el cambio de estado, para no devolver dos veces si dos personas cancelan a la vez (filtrar por `status: { $ne: 'cancelled' }` en el `findOneAndUpdate`).
 - Enviar correo de cancelación al cliente (Persona 4).
 
 **Pago no confirmado (cancelación automática):** una tarea programada (EventBridge + Lambda, cada 5 minutos, Persona 4) busca `{ status: 'pending', expiresAt: { $lte: now } }` y aplica la misma cancelación con `cancelledBy: 'system'`. Si el webhook de pago llega **después** de eso, no se revive la reservación: se reembolsa.

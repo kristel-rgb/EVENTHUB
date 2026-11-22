@@ -243,7 +243,7 @@ function onEventChange(e: Event) {
                 <p class="res__action">Puede ingresar</p>
                 <div class="res__det">
                   <strong>{{ result.info.holder.name }}</strong>
-                  <span>{{ result.info.ticket.code }} · Entrada {{ result.info.ticket.position.n }} de {{ result.info.ticket.position.of }}</span>
+                  <span>{{ result.info.ticket.code }}<template v-if="result.info.ticket.typeName"> · <strong>{{ result.info.ticket.typeName }}</strong></template> · Entrada {{ result.info.ticket.position.n }} de {{ result.info.ticket.position.of }}</span>
                   <span>Reservación {{ result.info.reservation.code }} · {{ result.info.reservation.paymentStatus === 'free' ? 'Gratis' : 'Pagada' }}</span>
                 </div>
               </template>

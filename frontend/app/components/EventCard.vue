@@ -35,7 +35,7 @@ const availability = computed(() => {
         <Icon name="lucide:map-pin" size="14" /> {{ event.location }}
       </p>
       <div class="event-card__foot">
-        <span class="event-card__price">{{ formatPrice(event.price) }}</span>
+        <span class="event-card__price"><template v-if="(event.ticketTypes?.length ?? 0) > 1">Desde </template>{{ formatPrice(event.price) }}</span>
         <span class="event-card__spots" :class="`is-${availability.tone}`">{{ availability.text }}</span>
       </div>
     </div>

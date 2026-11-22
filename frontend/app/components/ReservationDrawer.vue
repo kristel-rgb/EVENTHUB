@@ -122,7 +122,7 @@ const payLine = computed(() => {
         <dl class="dr__grid">
           <div><dt>Evento</dt><dd>{{ data.event.name }}<span class="muted">{{ formatEventDate(data.event.date) }}</span></dd></div>
           <div><dt>Comprada</dt><dd>{{ formatEventDate(data.createdAt) }}</dd></div>
-          <div><dt>Total</dt><dd>{{ data.total ? formatPrice(data.total) : 'Gratis' }}<span v-if="data.total" class="muted">{{ data.quantity }} × {{ formatPrice(data.unitPrice) }}</span></dd></div>
+          <div><dt>Total</dt><dd>{{ data.total ? formatPrice(data.total) : 'Gratis' }}<span class="muted">{{ data.quantity }} × {{ data.unitPrice ? formatPrice(data.unitPrice) : 'gratis' }} · {{ data.ticketTypeName }}</span></dd></div>
           <div><dt>Pago</dt><dd>{{ payLine }}<span v-if="data.paymentRef" class="muted">Referencia {{ data.paymentRef }}</span></dd></div>
         </dl>
 

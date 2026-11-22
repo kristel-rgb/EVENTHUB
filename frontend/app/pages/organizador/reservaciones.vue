@@ -189,7 +189,7 @@ function onChanged(msg: string) { notice.value = msg; refresh() }
             </td>
             <td v-if="allEvents" class="ev"><span>{{ r.event.name }}</span><span class="muted cap">{{ formatShortDate(r.event.date) }}</span></td>
             <td class="code">{{ r.code }}</td>
-            <td class="num">{{ r.quantity }}</td>
+            <td class="num">{{ r.quantity }}<span v-if="r.ticketTypeName" class="muted">{{ r.ticketTypeName }}</span></td>
             <td class="num money">{{ r.total ? formatPrice(r.total) : 'Gratis' }}</td>
             <td><span class="cap">{{ formatShortDate(r.createdAt) }}</span><span class="muted">{{ formatTime(r.createdAt) }}</span></td>
             <td>

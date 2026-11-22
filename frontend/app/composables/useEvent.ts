@@ -22,14 +22,14 @@ export function useReserve() {
   const errorMessage = ref<string | null>(null)
   const result = ref<ReservationCreated | null>(null)
 
-  async function reserve(eventId: string, quantity: number) {
+  async function reserve(eventId: string, quantity: number, ticketType?: string) {
     loading.value = true
     errorMessage.value = null
     result.value = null
     try {
       result.value = await api<ReservationCreated>(`/events/${eventId}/reservations`, {
         method: 'POST',
-        body: { quantity },
+        body: { quantity, ticketType },
       })
       // El inicio y Mis entradas muestran la compra nueva
       clearNuxtData(key => key === 'my-tickets' || key === 'my-feed' || key === 'home-popular' || key === 'home-upcoming')

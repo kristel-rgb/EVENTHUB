@@ -258,7 +258,7 @@ Comprar o reservar entradas. **Requiere sesión de Asistente.**
 **Body**
 
 ```json
-{ "quantity": 2 }
+{ "quantity": 2, "ticketType": "6740d0000000000000000002" }
 ```
 
 **Validaciones (en el servidor, en este orden)**
@@ -266,7 +266,9 @@ Comprar o reservar entradas. **Requiere sesión de Asistente.**
 1. El evento existe → si no, `404 EVENT_NOT_FOUND`.
 2. `status === "published"` → si no, `409 EVENT_NOT_AVAILABLE`.
 3. La fecha es futura → si no, `409 EVENT_FINISHED`.
-4. `quantity` es entero entre **1 y 10** → si no, `400 INVALID_QUANTITY` (máximo por compra; el frontend también lo limita a 10 en `app.config.ts`, avisen si cambia).
+4. `ticketType` es el `_id` de uno de los `ticketTypes` del evento (puede omitirse si el evento tiene un solo tipo) → si no, `400 INVALID_TICKET_TYPE`.
+5. `quantity` es entero entre **1 y `event.maxPerPurchase`** (máx. 10) → si no, `400 INVALID_QUANTITY`.
+6. Hay cupo suficiente **en ese tipo** → si no, `409 NOT_ENOUGH_SPOTS` (*"Solo quedan N entradas VIP."* o *"Las entradas VIP se agotaron."*).
 5. Hay cupo suficiente → si no, `409 NOT_ENOUGH_SPOTS` con el mensaje *"Solo quedan N espacios disponibles."*.
 
 > ⚠️ **Evitar sobreventa:** descontar el cupo con **una sola operación atómica**, por ejemplo:
@@ -523,9 +525,15 @@ Pantallas: `/organizador/eventos` (lista), `/organizador/eventos/nuevo` y `/orga
 | `endDate` | ISO \| null | — | Fin; debe ser después de `date`. |
 | `doorsOpenMinutes` | number | — | Minutos antes del inicio en que abren puertas (0–240). |
 | `venueName`, `address`, `city`, `province` | string | ✓ (menos `address`) | `province` es una de las 7 provincias. El backend arma `location = "venueName, city"`. |
-| `capacity` | number | ✓ | Entero ≥ 1. Al editar, **no menor** que lo ya reservado. |
-| `price` | number | ✓ | Entero ≥ 0 en colones. `0` = gratis. |
+| `ticketTypes` | array | ✓ (al menos 1) | Tipos de entrada, máx. 6: `[{ _id?, name, price, capacity }]`. `name` de 2 a 40 caracteres y único en el evento; `price` entero ≥ 0 (colones, `0` = gratis); `capacity` entero ≥ 1. `_id` solo para los tipos que ya existen (los nuevos no lo traen). Al editar: el cupo de un tipo **no puede ser menor** que lo ya vendido de ese tipo, y **no se puede quitar** un tipo con ventas. |
 | `maxPerPurchase` | number | — | 1–10. El detalle limita la cantidad con esto. |
+| `cancellationPolicy` | string | — | Hasta cuándo puede cancelar el cliente: `until_start` \| `24h` \| `48h` \| `7d` \| `none`. Por defecto `48h`. |
+| `contactEmail` | string | ✓ | Correo para consultas; se muestra en el detalle. |
+| `contactPhone` | string | — | 8 dígitos de Costa Rica. |
+
+La API **calcula** y devuelve `capacity` (suma de los cupos), `availableSpots` (suma de los libres) y `price` (el más bajo, "desde"). Cada tipo vuelve con `available` (y `sold` en la vista del organizador). `GET /events` y `GET /events/:id` incluyen `ticketTypes`, `cancellationPolicy`, `contactEmail` y `contactPhone`.
+
+Errores de los tipos: en `details` con la clave `ticketTypes.<i>.<campo>` (por ejemplo `ticketTypes.1.capacity`) o `ticketTypes` para el conjunto.
 | `minAge` | number | — | `0` (todo público), `12`, `15` o `18`. |
 | `accessibility` | string[] | — | `wheelchair`, `parking`, `public_transport`, `sign_language`. |
 | `importantInfo` | string | — | Una indicación por línea. |
@@ -596,6 +604,7 @@ Pantallas: `/organizador/reservaciones` (organizador) y `/mis-entradas` (cliente
 | Campo | Notas |
 |---|---|
 | `code` | Código corto para mostrar y buscar: `R-` + últimos 4 caracteres del `_id` en mayúscula. |
+| `ticketTypeName` | Nombre del tipo de entrada comprado (General, VIP…). También va en `GET /me/tickets` (`reservation.ticketTypeName`) y en la validación de la puerta (`ticket.typeName`). |
 | `status` | `pending` (esperando pago) \| `confirmed` \| `cancelled`. |
 | `paymentStatus` | `pending` \| `paid` \| `free`. |
 | `paymentRef` | Referencia de la pasarela. **Nunca** datos de tarjeta. |
@@ -653,7 +662,7 @@ Solo sus propias reservaciones (si no, `404`).
 
 #### Reglas (iguales para los dos lados)
 
-- **Cancelar** se puede si la reservación está `pending` o `confirmed`, el evento **todavía no ocurrió** y **ninguna entrada se usó**. Al cancelar: `status: "cancelled"`, `cancelledAt`, `cancelledBy`, las entradas pasan a `cancelled`, los espacios vuelven con `$inc` y se envía un correo al cliente (Persona 4).
+- **Cancelar** se puede si la reservación está `pending` o `confirmed`, el evento **todavía no ocurrió** y **ninguna entrada se usó**. El **cliente** además debe respetar la `cancellationPolicy` del evento (por ejemplo, con `48h` no puede cancelar una reservación pagada si faltan menos de 48 horas; con `none`, nunca); una reservación **pendiente de pago** siempre la puede cancelar. El organizador no tiene ese límite. `GET /me/tickets` trae `reservation.canCancel` y `reservation.cancelBlockedReason` para que el frontend muestre u oculte el botón. Al cancelar: `status: "cancelled"`, `cancelledAt`, `cancelledBy`, las entradas pasan a `cancelled`, los espacios vuelven con `$inc` y se envía un correo al cliente (Persona 4).
 - **Reenviar** se puede si está `confirmed` y el evento no ocurrió. Siempre al correo **de la cuenta** (no a uno que mande el cliente). Límite: una vez por minuto por reservación → `429 RESEND_TOO_SOON`.
 - **Reembolsos** de reservaciones pagadas que se cancelan: **pendiente de decidir** la política (¿siempre?, ¿hasta X horas antes?). El frontend por ahora no promete reembolso.
 
@@ -665,6 +674,8 @@ Solo sus propias reservaciones (si no, `404`).
 | 409 | `RESERVATION_ALREADY_CANCELLED` | Ya estaba cancelada. |
 | 409 | `EVENT_FINISHED` | El evento ya ocurrió. |
 | 409 | `TICKETS_ALREADY_USED` | Alguna entrada ya se validó en la puerta. |
+| 409 | `CANCELLATION_WINDOW_CLOSED` | El cliente quiere cancelar fuera del plazo de la política del evento. |
+| 409 | `CANCELLATION_NOT_ALLOWED` | El evento no permite cancelaciones (`cancellationPolicy: "none"`). |
 | 409 | `RESERVATION_NOT_CONFIRMED` | Reenviar algo que no está confirmado (pendiente de pago o cancelado). |
 | 429 | `RESEND_TOO_SOON` | Reenvío repetido en menos de un minuto. |
 
