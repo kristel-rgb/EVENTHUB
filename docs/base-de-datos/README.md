@@ -88,6 +88,8 @@ Perfil **completo** del usuario. Además de identificarlo, son los datos que la 
 | `passwordHash` | String | ✓ | bcrypt o Argon2. `select: false`. **Nunca** la contraseña en texto plano. Vacío solo si la cuenta es de Google. |
 | `googleId` | String | — | Único y *sparse*, si inició sesión con Google. |
 | `role` | String enum | ✓ | `admin` \| `attendee` \| `organizer`. Por defecto `attendee` (ver sección 3.8). |
+| `accountType` | String enum \| null | — | Solo si `role: organizer`: `organization` (organización de eventos) \| `venue` (lugar de eventos). |
+| `permissionOverrides` | `{ granted: [String], revoked: [String] }` | ✓ | Ajustes del Super Admin sobre los permisos del rol. Permisos efectivos = rol + `granted` − `revoked`. Por defecto vacíos. |
 | `status` | String enum | ✓ | `active` \| `disabled`. Por defecto `active`. |
 | `emailVerified` | Boolean | ✓ | `false` al registrarse; `true` al verificar el correo (o si viene de Google). |
 | `lastLoginAt` | Date \| null | — | Último ingreso exitoso. |
@@ -303,6 +305,10 @@ Catálogo de permisos (`:own` = solo sobre lo propio):
 | `reservations:read:all`, `reviews:moderate`, `stats:read:all` | | | ✓ |
 
 > Si más adelante se necesita otro tipo de usuario, se agrega como un documento nuevo en `roles` con su lista de permisos, sin cambiar el código de los endpoints.
+
+**Cuentas de organización y de lugar de eventos:** las dos usan el rol `organizer`; se distinguen con `users.accountType` (`organization` o `venue`). Las crea el Super Admin desde "Cuentas y permisos" (API, sección 2.16) **sin contraseña**: la persona la elige con el enlace de invitación (`passwordHash` vacío mientras tanto; no puede ingresar hasta elegirla).
+
+**Permisos por cuenta:** el Super Admin puede quitar o agregar permisos a una cuenta concreta (por ejemplo, un lugar de eventos que solo valida entradas y no crea eventos). Se guardan en `users.permissionOverrides`. Los permisos de administración **no** se pueden dar a cuentas que no sean `admin`.
 
 ---
 

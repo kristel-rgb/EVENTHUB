@@ -404,3 +404,59 @@ export interface FeedItem {
     category: Category
   }
 }
+
+// ---------- Cuentas y permisos (Super Admin) ----------
+/** Tipo de cuenta para mostrar. organization y venue usan el rol `organizer`. */
+export type AccountKind = 'attendee' | 'organization' | 'venue' | 'admin'
+
+/** Fila de GET /admin/users */
+export interface AccountRow {
+  _id: string
+  username: string
+  name: string
+  organizationName: string | null
+  email: string                  // parcialmente oculto en la lista
+  kind: AccountKind
+  role: Role
+  status: 'active' | 'disabled'
+  emailVerified: boolean
+  invited: boolean               // todavía no eligió contraseña (invitación pendiente)
+  customized: boolean            // tiene permisos ajustados a mano
+  lastLoginAt: string | null
+  createdAt: string
+}
+
+export interface AccountList extends Paginated<AccountRow> {
+  counts: { all: number, attendee: number, organization: number, venue: number, admin: number }
+}
+
+/** GET /admin/users/:id */
+export interface AccountDetail extends AccountRow {
+  phone: string | null
+  firstName: string
+  lastName1: string
+  lastName2: string
+  rolePermissions: string[]
+  permissions: string[]          // efectivos
+  permissionOverrides: { granted: string[], revoked: string[] }
+  stats: { events: number, publishedEvents: number, reservations: number }
+}
+
+/** GET /admin/permissions */
+export interface PermissionCatalog {
+  groups: { key: string, label: string, permissions: { key: string, label: string }[] }[]
+  adminOnly: string[]
+  defaults: Record<AccountKind, string[]>
+}
+
+export interface CreateAccountPayload {
+  kind: AccountKind
+  organizationName?: string
+  firstName: string
+  lastName1: string
+  lastName2?: string
+  username: string
+  email: string
+  phone?: string
+  permissions?: string[]
+}

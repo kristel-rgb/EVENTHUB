@@ -20,6 +20,12 @@ export default defineNuxtRouteMiddleware((to) => {
     }
   }
 
+  // El Super Admin también trabaja con la barra de íconos del panel en todo el sitio (salvo las páginas legales)
+  if (role === 'admin' && (to.path === '/' || to.path === '/buscar' || to.path.startsWith('/eventos/') || to.path === '/perfil' || to.path === '/mis-entradas')) {
+    to.meta.layout = 'panel'
+    to.meta.panel = 'organizer'
+  }
+
   if (to.meta.guestOnly && session.isLoggedIn) {
     return navigateTo(safeRedirect(to.query.redirect) ?? homeForRole(role), { replace: true })
   }

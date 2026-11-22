@@ -9,30 +9,27 @@ const route = useRoute()
 const menuOpen = ref(false)
 watch(() => route.fullPath, () => { menuOpen.value = false })
 
-const menus: Record<'organizer' | 'admin', NavItem[]> = {
-  organizer: [
-    { to: '/organizador', label: 'Resumen', icon: 'lucide:layout-dashboard' },
-    { to: '/organizador/eventos', label: 'Mis eventos', icon: 'lucide:calendar-days' },
-    { to: '/organizador/reservaciones', label: 'Reservaciones', icon: 'lucide:ticket' },
-    { to: '/organizador/validar', label: 'Validar entradas', icon: 'lucide:scan-line' },
-    { to: '/buscar', label: 'Buscar eventos', icon: 'lucide:search' },
-  ],
-  admin: [
-    { to: '/admin', label: 'Resumen', icon: 'lucide:layout-dashboard' },
-    { to: '/admin/usuarios', label: 'Usuarios', icon: 'lucide:users' },
-    { to: '/admin/eventos', label: 'Eventos', icon: 'lucide:calendar-days' },
-    { to: '/admin/reservaciones', label: 'Reservaciones', icon: 'lucide:ticket' },
-    { to: '/admin/categorias', label: 'Categorías', icon: 'lucide:tags' },
-    { to: '/admin/moderacion', label: 'Moderación', icon: 'lucide:shield-check' },
-  ],
-}
-
-const items = computed(() => menus[(route.meta.panel as 'organizer' | 'admin') ?? 'organizer'])
-
 const session = useSessionStore()
 const { logout } = useAuth()
-// La Organización no tiene sitio público al que volver (no usa Inicio ni Mis entradas)
-const showBack = computed(() => session.role !== 'organizer')
+
+// Organizar eventos (Organización y Super Admin)
+const organizerItems: NavItem[] = [
+  { to: '/organizador', label: 'Resumen', icon: 'lucide:layout-dashboard' },
+  { to: '/organizador/eventos', label: 'Mis eventos', icon: 'lucide:calendar-days' },
+  { to: '/organizador/reservaciones', label: 'Reservaciones', icon: 'lucide:ticket' },
+  { to: '/organizador/validar', label: 'Validar entradas', icon: 'lucide:scan-line' },
+]
+// Debajo, separado: el resto del sitio. La Organización solo tiene Buscar;
+// el Super Admin además tiene Cuentas y permisos, Inicio y Mis entradas.
+const siteItems = computed<NavItem[]>(() => session.role === 'admin'
+  ? [
+      { to: '/admin/cuentas', label: 'Cuentas y permisos', icon: 'lucide:user-cog' },
+      { to: '/', label: 'Inicio', icon: 'lucide:house' },
+      { to: '/buscar', label: 'Buscar eventos', icon: 'lucide:search' },
+      { to: '/mis-entradas', label: 'Mis entradas', icon: 'lucide:ticket-check' },
+    ]
+  : [{ to: '/buscar', label: 'Buscar eventos', icon: 'lucide:search' }])
+
 const who = computed(() => session.user?.organizationName || session.user?.name || '')
 </script>
 
@@ -55,7 +52,7 @@ const who = computed(() => session.user?.organizationName || session.user?.name 
       <!-- En computadora: solo íconos; el nombre aparece al pasar el mouse o con el teclado -->
       <nav id="panel-nav" class="panel-nav" :class="{ 'is-open': menuOpen }" aria-label="Panel">
         <NuxtLink
-          v-for="item in items"
+          v-for="item in organizerItems"
           :key="item.to"
           :to="item.to"
           class="panel-nav__link"
@@ -64,9 +61,16 @@ const who = computed(() => session.user?.organizationName || session.user?.name 
           <Icon :name="item.icon" size="22" />
           <span class="panel-nav__label">{{ item.label }}</span>
         </NuxtLink>
-        <NuxtLink v-if="showBack" to="/" class="panel-nav__link panel-nav__back">
-          <Icon name="lucide:arrow-left" size="22" />
-          <span class="panel-nav__label">Volver al sitio</span>
+        <span class="panel-nav__sep" role="separator" aria-hidden="true" />
+        <NuxtLink
+          v-for="item in siteItems"
+          :key="item.to"
+          :to="item.to"
+          class="panel-nav__link"
+          exact-active-class="is-active"
+        >
+          <Icon :name="item.icon" size="22" />
+          <span class="panel-nav__label">{{ item.label }}</span>
         </NuxtLink>
         <NuxtLink to="/perfil" class="panel-nav__link panel-nav__me">
           <span class="panel-nav__avatar" aria-hidden="true">{{ who.slice(0, 1).toUpperCase() }}</span>
@@ -110,9 +114,8 @@ const who = computed(() => session.user?.organizationName || session.user?.name 
 }
 .panel-nav__link:hover { background: var(--surface-dark-2); color: var(--color-sand); }
 .panel-nav__link.is-active { background: var(--color-sand); color: var(--color-ink); }
-.panel-nav__back { margin-top: auto; }
-.panel-nav__back + .panel-nav__me { margin-top: 0; }
 .panel-nav__me { margin-top: auto; }
+.panel-nav__sep { width: 32px; height: 1px; background: var(--surface-dark-2); margin: 6px 0; flex-shrink: 0; }
 .panel-nav__logout { border: 0; background: transparent; cursor: pointer; font: inherit; }
 .panel-nav__avatar {
   width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
@@ -147,7 +150,8 @@ const who = computed(() => session.user?.organizationName || session.user?.name 
   .panel-nav.is-open { display: flex; }
   .panel-nav__link { width: auto; height: 48px; justify-content: flex-start; gap: 12px; padding: 0 14px; }
   .panel-nav__label { position: static; transform: none; opacity: 1; background: none; border: 0; padding: 0; font-size: 0.9375rem; font-weight: 500; color: inherit; }
-  .panel-nav__back { margin-top: 8px; }
+  .panel-nav__sep { width: 100%; }
+  .panel-nav__me { margin-top: 8px; }
   .panel-main { padding: 24px 18px 40px; }
 }
 </style>

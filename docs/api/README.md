@@ -77,7 +77,9 @@ El frontend muestra un menú distinto según el tipo de cuenta y protege las pá
 | Sin cuenta | Inicio, Buscar, detalle de eventos, páginas legales, Ingresar, Crear cuenta. **Puede ver y buscar, pero no comprar.** | Solo públicos: `GET /categories`, `GET /events`, `GET /events/:id`, `GET /locations`, `POST /auth/*`. |
 | Cliente (`attendee`) | Lo anterior + **Mis entradas** (con historial) y **Perfil**, y **Cerrar sesión**. | + `POST /events/:id/reservations`, `/me/*` (sección 2.14), `GET /me/tickets`, `/me/reservations/*`. |
 | Organización (`organizer`) | **Solo su panel** (Resumen, Mis eventos, Reservaciones, Validar entradas) y **Buscar**, dentro de la misma barra de íconos, más su Perfil. **No** tiene Inicio ni Mis entradas y **no compra** entradas. Solo ve y cambia **sus** eventos. | `/organizer/*`, `POST/PATCH/DELETE /events…`, `/tickets/validate`, `/files/upload-intent`, `/me` (perfil). Si el evento o la reservación no es suyo → `404`. `POST /events/:id/reservations` → `403 FORBIDDEN`. |
-| Super Admin (`admin`) | **Todo**: lo anterior sobre **todos** los eventos, y el panel de administración (pendiente). | Todos. En `/organizer/*` el admin ve los eventos de todas las organizaciones. |
+| Super Admin (`admin`) | **Todo**, siempre con la barra de íconos del panel: Organizar eventos (sobre **todos** los eventos) y, debajo, **Cuentas y permisos**, Inicio, Buscar y Mis entradas. | Todos. En `/organizer/*` ve los eventos de todas las organizaciones. Además `/admin/*` (sección 2.16). |
+
+> Además del rol, cada cuenta puede tener **permisos ajustados** por el Super Admin (sección 2.16). `User.permissions` siempre trae los permisos **efectivos**; el backend debe revisar el permiso concreto en cada endpoint (`authorize('events:create')`), no solo el rol.
 
 - **Sesión en el navegador:** el frontend guarda el `accessToken` en una cookie `eh_session` (`SameSite=Lax`, `Secure` en producción) para no perder la sesión al recargar, y al abrir la página llama `GET /auth/me` para recuperar el usuario. Cuando exista el refresh token, la idea es pasar a cookie **httpOnly** del backend (tarea F08).
 - Al cerrar sesión: `POST /auth/logout` invalida el token en el servidor.
@@ -765,6 +767,38 @@ Cuando un **cliente** ingresa, el inicio no muestra el hero: muestra un saludo c
 
 **Cuándo se crea un `eventUpdate`:** en `PATCH /events/:id` de un evento **publicado**, si cambia `date`, `venueName`, `city` o `address` (con un texto que diga qué cambió), y en `POST /events/:id/cancel`. Además, enviar un correo a quienes tienen entradas (Persona 4). Ver la guía de base de datos, sección 3.9.
 
+### 2.16 Cuentas y permisos (Super Admin)
+
+Pantalla: `/admin/cuentas`. **Solo `admin`** (otros roles → `403`). El Super Admin cambia **lo mínimo** de cada cuenta: tipo, nombre de la organización o lugar, si está activa y sus permisos. Los datos personales los cambia cada persona desde su perfil.
+
+**Tipos de cuenta** (`kind`, se calcula a partir de `role` y `accountType`):
+
+| `kind` | `role` | `accountType` | Para qué |
+|---|---|---|---|
+| `organization` | `organizer` | `organization` | Empresa o colectivo que crea y vende sus eventos. |
+| `venue` | `organizer` | `venue` | **Lugar de eventos** (teatro, auditorio, centro de eventos) que publica lo que pasa en su espacio. Mismo panel que una organización. |
+| `attendee` | `attendee` | `null` | Cliente. |
+| `admin` | `admin` | `null` | Super Admin. |
+
+| Método | Ruta | Qué hace | Respuesta |
+|---|---|---|---|
+| `GET` | `/admin/users?q=&kind=&status=&page=&limit=` | Lista. `q` busca en nombre, usuario, correo y organización (sin tildes). `status`: `active` \| `disabled` \| `invited` (todavía no eligió contraseña). | `200` `{ items: AccountRow[], page, limit, total, counts: { all, attendee, organization, venue, admin } }` |
+| `GET` | `/admin/users/:id` | Detalle: contacto, `rolePermissions`, `permissions` (efectivos), `permissionOverrides` y `stats` (`events`, `publishedEvents`, `reservations`). | `200` `AccountDetail` |
+| `POST` | `/admin/users` | Crea una cuenta: `{ kind, organizationName?, firstName, lastName1, lastName2?, username, email, phone?, permissions? }`. Se crea **sin contraseña** y se envía una **invitación** al correo con un enlace de un solo uso (48 h) a `/restablecer-contrasena?token=…`. | `201` `{ user: AccountDetail, invitationSentTo }` (correo oculto) |
+| `PATCH` | `/admin/users/:id` | `{ kind?, organizationName?, status?, permissions? }`. `permissions` es la **lista final** de permisos marcados; el backend guarda la diferencia con el rol en `permissionOverrides`. Si cambia el tipo y no se mandan permisos, vuelven a los del tipo nuevo. | `200` `{ user: AccountDetail, closedSessions }` |
+| `GET` | `/admin/permissions` | Catálogo agrupado (`groups: [{ key, label, permissions: [{ key, label }] }]`), `adminOnly` y `defaults` por tipo. | `200` |
+
+**Reglas**
+
+- `AccountRow.email` va **oculto** en la lista (`o••••6@dominio`); completo solo en el detalle.
+- **Permisos solo de Super Admin** (`users:read`, `users:update`, `categories:manage`, `events:manage`, `reservations:read:all`, `reviews:moderate`, `stats:read:all`): se ignoran si se marcan en una cuenta que no es `admin`.
+- El Super Admin **no puede cambiar su propia cuenta** (tipo, estado o permisos) → `409 CANNOT_CHANGE_SELF`. Así no se queda nadie sin acceso por error.
+- Al **desactivar** una cuenta o **cambiarle el tipo**, se cierran sus sesiones (`sessions.revokedAt`) para que el cambio aplique de inmediato.
+- `username` y `email` únicos (sin importar mayúsculas) → `400 VALIDATION_ERROR` con `details`.
+- Guardar en `accessLogs` (o una colección `auditLogs`) quién cambió qué y cuándo.
+
+Errores: `404 USER_NOT_FOUND` · `409 CANNOT_CHANGE_SELF` · `400 VALIDATION_ERROR`.
+
 ---
 
 ## 3. Endpoints que el frontend VA a necesitar (propuesta)
@@ -882,6 +916,7 @@ Si quieren ver cómo se comporta un endpoint (por ejemplo la búsqueda con `didY
 - [ ] Reservaciones (sección 2.12): estado de pago, **cancelación automática a las 3 h** (tarea programada), cancelar y reenviar desde los dos lados.
 - [ ] Validación en la puerta (sección 2.13): firma del QR, operación atómica, deshacer en 2 minutos y `validatedBy`/`gate`.
 - [ ] Inicio del cliente (sección 2.15): `GET /me/feed`, `GET /events?sort=popular` y registrar `eventUpdates` al cambiar o cancelar un evento publicado.
+- [ ] Cuentas y permisos (sección 2.16): crear cuentas con invitación por correo, permisos ajustados por cuenta y revisar **permisos** (no solo el rol) en cada endpoint.
 - [ ] Webhook de la pasarela de pago. **No guardar datos de tarjeta**, solo `paymentRef`.
 - [ ] Endpoints de la sección 3 acordados con el frontend antes de programarlos.
 - [ ] Documentación OpenAPI/Swagger/Scalar generada a partir de este contrato.
