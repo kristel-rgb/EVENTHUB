@@ -654,6 +654,50 @@ Solo sus propias reservaciones (si no, `404`).
 
 ---
 
+### 2.13 Validar entradas en la puerta
+
+Pantalla: `/organizador/validar`, pensada para el **celular** del personal en la puerta. Se escanea el QR con la cámara o se escribe el código (`EH-1042`). **La validación la hace siempre el backend**; el frontend solo muestra el resultado.
+
+| Método | Ruta | Qué hace | Respuesta |
+|---|---|---|---|
+| `GET` | `/organizer/checkin/events` | Eventos del organizador que se pueden validar: `published`, que empiezan en los próximos **7 días** o empezaron hace menos de **12 horas**, ordenados por fecha. | `200` `[{ _id, name, date, doorsOpenMinutes, location, sold, checkedIn }]` |
+| `GET` | `/organizer/checkin?event=:id` | Contador y últimas 15 validaciones del evento. | `200` `{ event: { _id, name, date, location }, sold, checkedIn, recent: ScanInfo[] }` |
+| `POST` | `/tickets/validate` | Valida y marca la entrada como usada. Body: `{ event, qrValue }` (escaneado) **o** `{ event, code }` (escrito; acepta `EH-1042` o solo `1042`), más `gate` opcional (nombre de la puerta, máx. 40). | `200` `ScanInfo` + `{ result: "valid", sold, checkedIn }` |
+| `POST` | `/tickets/:id/undo-validation` | Deshace una validación hecha por error: solo **quien la hizo** y dentro de **2 minutos**. La entrada vuelve a `active`. | `200` `{ ticketId, sold, checkedIn }` |
+
+`sold` = entradas vigentes del evento (sin canceladas); `checkedIn` = entradas `used`.
+
+**`ScanInfo`**
+
+```json
+{
+  "ticket": { "_id": "...", "code": "EH-1043", "position": { "n": 2, "of": 2 } },
+  "holder": { "name": "Andrea Vargas" },
+  "reservation": { "code": "R-4F2A", "paymentStatus": "paid" },
+  "usedAt": "2026-11-28T01:41:00.000Z",
+  "gate": "Puerta 1",
+  "canUndo": true
+}
+```
+
+**Orden de las validaciones** (en el servidor):
+
+1. El evento es del organizador → si no, `404 EVENT_NOT_FOUND`. Si está cancelado → `409 EVENT_CANCELLED`.
+2. Verificar la **firma** del `qrValue` (o buscar por `code`) → si no existe o la firma no coincide, `404 TICKET_INVALID`.
+3. La entrada es de **ese** evento → si no, `409 TICKET_WRONG_EVENT` (con `details.eventName`).
+4. La entrada o su reservación están canceladas → `409 TICKET_CANCELLED`.
+5. La reservación está esperando pago → `409 TICKET_PAYMENT_PENDING`.
+6. Ya está `used` → `409 TICKET_ALREADY_USED`.
+7. Marcarla con **una sola operación atómica**: `findOneAndUpdate({ _id, status: 'active' }, { $set: { status: 'used', usedAt: now, validatedBy: userId, gate } })`. Si devuelve `null`, otro dispositivo la acaba de validar → `409 TICKET_ALREADY_USED`.
+
+> **Los rechazos llevan los datos para la pantalla en `details`** (el mismo `ScanInfo` cuando se encontró la entrada), por ejemplo, para `TICKET_ALREADY_USED`: nombre del titular, hora en que se usó y en qué puerta. Para `TICKET_INVALID`, `details` va vacío.
+
+Errores de deshacer: `403 FORBIDDEN` (no la validó él), `409 UNDO_EXPIRED` (pasaron más de 2 minutos), `409 TICKET_NOT_USED`.
+
+> La cámara del navegador solo funciona en **https** (o `localhost`). En producción el frontend va con https; para probar desde un celular en desarrollo hay que levantar Nuxt con `--https`.
+
+---
+
 ## 3. Endpoints que el frontend VA a necesitar (propuesta)
 
 Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del documento de división de tareas (sección 11). **Son propuestas:** si el backend prefiere otra forma, avisen antes de programarla.
@@ -686,7 +730,7 @@ Por decidir entre los dos:
 |---|---|---|
 | ~~`POST`~~ | ~~`/reservations/:id/cancel`~~ | **Ya definido** en la sección 2.12 (`/me/reservations/:id/cancel` y `/organizer/reservations/:id/cancel`). |
 | `POST` | `/payments/webhook` | Lo llama la pasarela cuando confirma un pago: verificar la firma, pasar la reservación a `confirmed`/`paid`, emitir entradas y enviar el correo. Si llega después de las 3 h y la reservación ya se canceló: **reembolsar** (pendiente de definir con la pasarela). |
-| `POST` | `/tickets/validate` | `{ qrValue }`. Para el organizador en la puerta: verifica la firma, que la entrada sea de un evento suyo y que no esté usada. La marca `used` con `usedAt`. Errores: `TICKET_INVALID`, `TICKET_ALREADY_USED`, `TICKET_CANCELLED`. |
+| ~~`POST`~~ | ~~`/tickets/validate`~~ | **Ya definido** en la sección 2.13. |
 | ~~`GET`~~ | ~~`/organizer/events/:id/reservations`~~ | Reemplazado por `GET /organizer/reservations?event=:id` (sección 2.12). |
 
 ### 3.3 Gestión de eventos del organizador (Persona 3 y Persona 4)
@@ -728,7 +772,9 @@ El equipo decidió **no** mostrar botones de reportes en el frontend. Igual hay 
 | 403 | `FORBIDDEN` | Con sesión pero sin permiso (rol o no es el dueño). |
 | 404 | `EVENT_NOT_FOUND`, `NOT_FOUND` | No existe. |
 | 409 | `EVENT_NOT_AVAILABLE`, `EVENT_FINISHED`, `NOT_ENOUGH_SPOTS` | Reservas. |
-| 409 | `TICKET_ALREADY_USED`, `TICKET_CANCELLED` | Validación en la puerta. |
+| 404 | `TICKET_INVALID` | QR o código que no corresponde a ninguna entrada (o firma inválida). |
+| 409 | `TICKET_ALREADY_USED`, `TICKET_CANCELLED`, `TICKET_WRONG_EVENT`, `TICKET_PAYMENT_PENDING`, `EVENT_CANCELLED` | Validación en la puerta (sección 2.13). Llevan `details` para la pantalla. |
+| 409 | `UNDO_EXPIRED`, `TICKET_NOT_USED` | Deshacer una validación. |
 | 404 | `RESERVATION_NOT_FOUND` | Reservación inexistente o ajena. |
 | 409 | `RESERVATION_ALREADY_CANCELLED`, `TICKETS_ALREADY_USED`, `RESERVATION_NOT_CONFIRMED` | Cancelar o reenviar reservaciones (sección 2.12). |
 | 409 | `EVENT_INCOMPLETE`, `EVENT_NOT_EDITABLE`, `EVENT_NOT_DRAFT`, `EVENT_NOT_DELETABLE`, `EVENT_NOT_CANCELLABLE` | Gestión de eventos (sección 2.11). |
@@ -764,6 +810,7 @@ Si quieren ver cómo se comporta un endpoint (por ejemplo la búsqueda con `didY
 - [ ] `GET /organizer/stats` con agregaciones reales y filtrado por el organizador del token.
 - [ ] Gestión de eventos (sección 2.11): crear, editar, publicar, vista previa, duplicar, cancelar, eliminar borrador y subida de imagen a S3.
 - [ ] Reservaciones (sección 2.12): estado de pago, **cancelación automática a las 3 h** (tarea programada), cancelar y reenviar desde los dos lados.
+- [ ] Validación en la puerta (sección 2.13): firma del QR, operación atómica, deshacer en 2 minutos y `validatedBy`/`gate`.
 - [ ] Webhook de la pasarela de pago. **No guardar datos de tarjeta**, solo `paymentRef`.
 - [ ] Endpoints de la sección 3 acordados con el frontend antes de programarlos.
 - [ ] Documentación OpenAPI/Swagger/Scalar generada a partir de este contrato.

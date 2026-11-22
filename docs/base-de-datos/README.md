@@ -213,10 +213,12 @@ Una entrada por cada espacio reservado. Es lo que se muestra en "Mis entradas" y
 | `user` | ObjectId → `User` | ✓ | Titular (en la API se llama `holder`). |
 | `status` | String enum | ✓ | `active` \| `used` \| `cancelled`. Por defecto `active`. |
 | `usedAt` | Date \| null | — | Cuándo se validó en la puerta. |
+| `validatedBy` | ObjectId → `User` \| null | — | Quién la validó (organizador o personal). Se usa para permitir **deshacer** solo a esa persona. |
+| `gate` | String \| null | — | Nombre de la puerta o del dispositivo (opcional, máx. 40), por ejemplo `Puerta 1`. |
 | `qrValue` | String | ✓ | Texto que va **dentro** del QR. Debe ser un **token firmado** (JWT o HMAC) con al menos el `_id` de la entrada. **No** debe permitir adivinar otras entradas. |
 | `createdAt` / `updatedAt` | Date | ✓ | timestamps. |
 
-**Índices:** `{ code: 1 }` único · `{ user: 1 }` (Mis entradas) · `{ event: 1, status: 1 }` (validación y conteos) · `{ reservation: 1 }`.
+**Índices:** `{ code: 1 }` único · `{ user: 1 }` (Mis entradas) · `{ event: 1, status: 1 }` (validación y conteos) · `{ event: 1, usedAt: -1 }` (últimas validaciones) · `{ reservation: 1 }`.
 
 **Estados visuales del frontend** (no se guardan):
 
@@ -337,9 +339,12 @@ La puede cancelar **el cliente** (desde Mis entradas), **el organizador** del ev
 
 ### 4.4 Validar una entrada en la puerta
 
-- Verificar la firma de `qrValue` y buscar la entrada.
-- Debe ser de un evento **del organizador** que valida.
-- Si está `active`, pasarla a `used` con `usedAt`, en una operación atómica (`findOneAndUpdate` con `status: 'active'`) para que no se pueda usar dos veces al mismo tiempo.
+- Verificar la firma de `qrValue` (o buscar por `code` si se escribió a mano) y buscar la entrada.
+- Debe ser del evento elegido y de un evento **del organizador** que valida.
+- La entrada y su reservación no pueden estar canceladas, y la reservación debe estar `confirmed` (pagada o gratis).
+- Si está `active`, pasarla a `used` con `usedAt`, `validatedBy` y `gate`, en una operación atómica (`findOneAndUpdate` con `status: 'active'`) para que no se pueda usar dos veces al mismo tiempo, aunque dos puertas la escaneen a la vez.
+- **Deshacer:** solo `validatedBy` y dentro de 2 minutos desde `usedAt`. Vuelve a `active` y limpia `usedAt`, `validatedBy` y `gate`.
+- Solo se validan eventos `published` desde 7 días antes hasta 12 horas después del inicio (ajustable).
 
 ---
 
@@ -354,6 +359,7 @@ La puede cancelar **el cliente** (desde Mis entradas), **el organizador** del ev
 | Panel organizador | `GET /organizer/stats` | Agregaciones sobre `events` y `reservations` del organizador (ver contrato de la API, sección 2.7). |
 | Mis eventos | `GET /organizer/events` | `find({ organizer })` + `$facet` para los conteos por estado (sección 2.11 de la API). |
 | Reservaciones (organizador) | `GET /organizer/reservations` | `find({ event: { $in: idsDelOrganizador } })` + `populate('user', 'name email')` + `$facet` con conteos por estado y el resumen (vendidas, ingresos, ingresaron). Búsqueda por nombre, correo y código (sección 2.12). |
+| Validar entradas | `GET /organizer/checkin` | `countDocuments({ event, status: { $ne: 'cancelled' } })`, `countDocuments({ event, status: 'used' })` y `find({ event, status: 'used' }).sort({ usedAt: -1 }).limit(15)` + populate del titular. |
 | Mis entradas · Esperando pago | `GET /me/reservations?status=pending` | `find({ user, status: 'pending' })` + populate del evento. |
 
 ---

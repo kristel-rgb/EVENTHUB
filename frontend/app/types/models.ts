@@ -310,3 +310,44 @@ export interface OrganizerStats {
   }[]
   events: { _id: string, name: string, date: string, status: EventStatus, capacity: number, reserved: number, revenue: number }[]
 }
+
+/** Evento que se puede validar en la puerta: GET /organizer/checkin/events */
+export interface CheckinEvent {
+  _id: string
+  name: string
+  date: string
+  doorsOpenMinutes?: number
+  location: string
+  sold: number          // entradas vigentes (sin canceladas)
+  checkedIn: number     // entradas ya usadas
+}
+
+/** Resultado de escanear una entrada (también viene en `details` cuando se rechaza) */
+export interface ScanInfo {
+  ticket: { _id: string, code: string, position: { n: number, of: number } }
+  holder: { name: string }
+  reservation: { code: string, paymentStatus: PaymentStatus }
+  usedAt: string | null
+  gate: string | null
+  canUndo: boolean
+  eventName?: string | null
+}
+
+/** POST /tickets/validate (200) */
+export interface ValidateResult extends ScanInfo {
+  result: 'valid'
+  sold: number
+  checkedIn: number
+}
+
+/** GET /organizer/checkin?event= */
+export interface CheckinStatus {
+  event: { _id: string, name: string, date: string, location: string }
+  sold: number
+  checkedIn: number
+  recent: ScanInfo[]
+}
+
+export type ScanRejectCode =
+  | 'TICKET_INVALID' | 'TICKET_ALREADY_USED' | 'TICKET_CANCELLED' | 'TICKET_WRONG_EVENT'
+  | 'TICKET_PAYMENT_PENDING' | 'EVENT_CANCELLED'
