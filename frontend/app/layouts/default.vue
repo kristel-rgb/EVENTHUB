@@ -30,7 +30,8 @@ async function onLogout() {
 }
 
 // En la portada el encabezado va transparente encima de la imagen del hero
-const isHome = computed(() => route.path === '/')
+// (el cliente con sesión tiene un inicio personal con encabezado normal)
+const isHome = computed(() => route.path === '/' && !(session.isLoggedIn && session.role === 'attendee'))
 </script>
 
 <template>

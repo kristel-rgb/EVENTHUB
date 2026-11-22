@@ -1,11 +1,13 @@
 <script setup lang="ts">
-const session = useSessionStore()
 // Portada: hero a pantalla completa con imagen de fondo, próximos eventos,
 // accesos rápidos "¿Qué hacer?" y colecciones (todos llevan a /buscar con filtros).
 // La búsqueda, las categorías y el listado completo están en /buscar.
 import type { EventFilters } from '~/composables/useCatalog'
 
 useHead({ title: 'Inicio' })
+const session = useSessionStore()
+// Cliente con sesión: inicio personal (saludo, su próxima entrada, novedades y lo más esperado) en vez del hero
+const personal = computed(() => session.isLoggedIn && session.role === 'attendee')
 const { home } = useAppConfig()
 
 const upcomingFilters = ref<EventFilters>({ page: 1, limit: home.upcomingCount })
@@ -13,8 +15,10 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
 </script>
 
 <template>
-  <!-- Hero a pantalla completa -->
-  <section class="hero theme-fixed" aria-labelledby="hero-title">
+  <HomePersonalHome v-if="personal" />
+
+  <!-- Hero a pantalla completa (sin sesión) -->
+  <section v-else class="hero theme-fixed" aria-labelledby="hero-title">
     <img
       class="hero__img"
       :src="home.heroImage"

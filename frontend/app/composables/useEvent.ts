@@ -31,6 +31,8 @@ export function useReserve() {
         method: 'POST',
         body: { quantity },
       })
+      // El inicio y Mis entradas muestran la compra nueva
+      clearNuxtData(key => key === 'my-tickets' || key === 'my-feed' || key === 'home-popular' || key === 'home-upcoming')
     }
     catch (err: unknown) {
       const data = (err as { data?: { data?: ApiError } & ApiError }).data

@@ -45,6 +45,16 @@ export default defineAppConfig({
     heroCredit: { name: 'Yvette de Wit', url: 'https://unsplash.com/photos/stage-light-front-of-audience-NYrVisodQ2M' },
     upcomingTitle: 'Próximos eventos',
     upcomingCount: 4,
+    // Inicio del cliente con sesión (en vez del hero)
+    personal: {
+      greeting: 'Hola',
+      searchPlaceholder: 'Buscar eventos, lugares o artistas',
+      nextTicketTitle: 'Tu próxima entrada',
+      feedTitle: 'Novedades',
+      feedEmpty: 'No hay novedades por ahora. Aquí te avisamos si cambia algo de tus eventos o si aparece algo que te puede gustar.',
+      popularTitle: 'Lo más esperado',
+      popularCount: 4,
+    },
     seeAllLabel: 'Ver todos los eventos',
 
     // Accesos rápidos "¿Qué hacer?": cada uno abre /buscar con esos filtros

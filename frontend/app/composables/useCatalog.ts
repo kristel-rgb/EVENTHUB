@@ -7,6 +7,7 @@ export interface EventFilters {
   to?: string             // fecha ISO: hasta
   price?: 'free' | 'paid'
   location?: string
+  sort?: 'date' | 'popular'   // popular = los más esperados (mayor % vendido)
   page: number
   limit: number
 }

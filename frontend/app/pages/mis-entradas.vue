@@ -3,6 +3,7 @@
 // Datos: GET /me/tickets · Al hacer clic se abre el boleto en una ventana.
 const { tickets: text } = useAppConfig()
 definePageMeta({ auth: true }) // solo con sesión
+const route = useRoute()
 useHead({ title: text.title })
 
 const { data, status, error, refresh } = await useMyTickets()
@@ -29,6 +30,12 @@ const soonCount = computed(() => active.value.filter(e => e.state === 'soon').le
 const shown = computed(() => (tab.value === 'active' ? active.value : history.value))
 
 const selected = ref<Entry | null>(null)
+// Si llega desde el inicio con ?entrada=<id>, se abre ese boleto
+onMounted(() => {
+  const id = route.query.entrada
+  const found = typeof id === 'string' ? entries.value.find(e => e.ticket._id === id) : undefined
+  if (found) selected.value = found
+})
 
 // ---------- Reservaciones esperando pago (guardan los espacios 3 h; después se cancelan solas) ----------
 const { data: pending, refresh: refreshPending } = await useMyReservations('pending')

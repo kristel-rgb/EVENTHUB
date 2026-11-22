@@ -300,6 +300,23 @@ Catálogo de permisos (`:own` = solo sobre lo propio):
 
 ---
 
+### 3.9 `eventUpdates`
+
+Historial de cambios importantes de eventos **publicados**. Alimenta las "Novedades" del inicio del cliente (API, sección 2.15).
+
+| Campo | Tipo | Requerido | Notas |
+|---|---|---|---|
+| `_id` | ObjectId | ✓ | |
+| `event` | ObjectId → `Event` | ✓ | |
+| `kind` | String enum | ✓ | `changed` \| `cancelled`. |
+| `fields` | [String] | ✓ | Qué cambió: `date`, `venue`. Vacío si es `cancelled`. |
+| `message` | String | ✓ | Frase lista para mostrar, por ejemplo "Ahora es el sábado 6 de diciembre, 8:00 p. m.". |
+| `createdAt` | Date | ✓ | |
+
+**Índices:** `{ event: 1, createdAt: -1 }`. Pueden borrarse a los 90 días (índice TTL en `createdAt`).
+
+---
+
 ## 4. Reglas de negocio que dependen de la base de datos
 
 ### 4.1 Reservar sin sobreventa

@@ -44,7 +44,7 @@ export function useReservationActions(side: 'organizer' | 'customer') {
   // Cancelar devuelve espacios: se refrescan las listas, el detalle del evento y Buscar
   function invalidate() {
     clearNuxtData(key => key === 'organizer-reservations' || key === 'organizer-stats' || key === 'organizer-events'
-      || key === 'my-tickets' || key.startsWith('my-reservations') || key === 'events-search' || key === 'home-upcoming'
+      || key === 'my-tickets' || key === 'my-feed' || key === 'home-popular' || key.startsWith('my-reservations') || key === 'events-search' || key === 'home-upcoming'
       || key.startsWith('event-'))
   }
 

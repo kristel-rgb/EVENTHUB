@@ -351,3 +351,23 @@ export interface CheckinStatus {
 export type ScanRejectCode =
   | 'TICKET_INVALID' | 'TICKET_ALREADY_USED' | 'TICKET_CANCELLED' | 'TICKET_WRONG_EVENT'
   | 'TICKET_PAYMENT_PENDING' | 'EVENT_CANCELLED'
+
+/** Novedades del inicio del cliente: GET /me/feed */
+export interface FeedItem {
+  _id: string
+  type: 'cancelled' | 'changed' | 'few_spots' | 'new'
+  title: string
+  text: string
+  createdAt: string
+  event: {
+    _id: string
+    name: string
+    date: string
+    location: string
+    imageUrl: string | null
+    capacity: number
+    availableSpots: number
+    status: EventStatus
+    category: Category
+  }
+}

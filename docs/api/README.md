@@ -136,6 +136,7 @@ Catálogo público con búsqueda, filtros y paginación.
 | `to` | ISO date | Solo eventos con `date <= to`. |
 | `price` | `free` \| `paid` | `free` = `price === 0`; `paid` = `price > 0`. |
 | `location` | string | Lugar **exacto**, tal como lo devuelve `GET /locations`. |
+| `sort` | `date` \| `popular` | `date` (por defecto): el más próximo primero. `popular`: **los más esperados**, ordenados por % vendido (`(capacity - availableSpots) / capacity`) de mayor a menor; se usa en el inicio del cliente. |
 | `page` | number | Página, desde 1. Por defecto 1. |
 | `limit` | number | Tamaño de página. Por defecto 12, **máximo 50**. |
 
@@ -729,6 +730,30 @@ Página para **cualquier** cuenta con sesión.
 
 **Errores de `POST /me/password`:** `400 WRONG_PASSWORD` (la actual no coincide, con `details.currentPassword`) · `400 VALIDATION_ERROR` (no cumple las reglas o es igual a la actual, con `details.newPassword`). Enviar un correo avisando del cambio (Persona 4).
 
+### 2.15 Inicio del cliente (`GET /me/feed`)
+
+Cuando un **cliente** ingresa, el inicio no muestra el hero: muestra un saludo con buscador, **su próxima entrada** (sale de `GET /me/tickets`), **Novedades** y **Lo más esperado** (`GET /events?sort=popular&limit=4`).
+
+`GET /me/feed` (requiere sesión) → `200 { items: FeedItem[] }`, en este orden:
+
+| `type` | Qué es | Regla |
+|---|---|---|
+| `cancelled` | Un evento al que iba se canceló. | `eventUpdates` de los últimos 30 días de eventos donde el usuario tuvo reservación. |
+| `changed` | Cambió la fecha, la hora o el lugar de un evento al que va. | `eventUpdates` de los últimos 30 días de eventos con reservación **no cancelada**. Más reciente primero. |
+| `few_spots` | Últimos espacios. | Máx. 2 eventos publicados y futuros con **85 % o más** vendido y espacios libres, que el usuario no tenga; primero los de sus categorías favoritas. |
+| `new` | Nuevo evento que le puede gustar. | Máx. 3 eventos publicados en las últimas 3 semanas, de las **3 categorías en que más compra** (o de cualquiera si no tiene historial), que no tenga. |
+
+```json
+{
+  "_id": "...", "type": "changed", "title": "Cambio de fecha u hora",
+  "text": "La hora de inicio cambió a las 8:00 p. m.", "createdAt": "2026-11-20T15:00:00.000Z",
+  "event": { "_id": "...", "name": "Noche de jazz en vivo", "date": "...", "location": "...", "imageUrl": null,
+             "capacity": 120, "availableSpots": 5, "status": "published", "category": { "_id": "...", "name": "Conciertos", "slug": "conciertos" } }
+}
+```
+
+**Cuándo se crea un `eventUpdate`:** en `PATCH /events/:id` de un evento **publicado**, si cambia `date`, `venueName`, `city` o `address` (con un texto que diga qué cambió), y en `POST /events/:id/cancel`. Además, enviar un correo a quienes tienen entradas (Persona 4). Ver la guía de base de datos, sección 3.9.
+
 ---
 
 ## 3. Endpoints que el frontend VA a necesitar (propuesta)
@@ -845,6 +870,7 @@ Si quieren ver cómo se comporta un endpoint (por ejemplo la búsqueda con `didY
 - [ ] Gestión de eventos (sección 2.11): crear, editar, publicar, vista previa, duplicar, cancelar, eliminar borrador y subida de imagen a S3.
 - [ ] Reservaciones (sección 2.12): estado de pago, **cancelación automática a las 3 h** (tarea programada), cancelar y reenviar desde los dos lados.
 - [ ] Validación en la puerta (sección 2.13): firma del QR, operación atómica, deshacer en 2 minutos y `validatedBy`/`gate`.
+- [ ] Inicio del cliente (sección 2.15): `GET /me/feed`, `GET /events?sort=popular` y registrar `eventUpdates` al cambiar o cancelar un evento publicado.
 - [ ] Webhook de la pasarela de pago. **No guardar datos de tarjeta**, solo `paymentRef`.
 - [ ] Endpoints de la sección 3 acordados con el frontend antes de programarlos.
 - [ ] Documentación OpenAPI/Swagger/Scalar generada a partir de este contrato.
