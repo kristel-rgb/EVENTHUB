@@ -2,6 +2,7 @@
 // La URL base sale de NUXT_PUBLIC_API_BASE (.env), así que cambiar
 // entre la API de prueba y el backend real no requiere tocar código.
 // Si hay sesión, agrega el encabezado Authorization: Bearer <token>.
+// Si la API responde 401 (sesión vencida), borra la sesión de este navegador.
 export function useApi() {
   const config = useRuntimeConfig()
   const session = useSessionStore()
@@ -13,6 +14,12 @@ export function useApi() {
       const headers = new Headers(options.headers as HeadersInit | undefined)
       headers.set('Authorization', `Bearer ${session.accessToken}`)
       options.headers = headers
+    },
+    onResponseError({ response }) {
+      if (response.status === 401 && session.accessToken) {
+        session.clear()
+        writeSessionCookie(null)
+      }
     },
   })
 }

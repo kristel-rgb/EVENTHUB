@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const session = useSessionStore()
 // Portada: hero a pantalla completa con imagen de fondo, próximos eventos,
 // accesos rápidos "¿Qué hacer?" y colecciones (todos llevan a /buscar con filtros).
 // La búsqueda, las categorías y el listado completo están en /buscar.
@@ -35,8 +36,11 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
           <NuxtLink to="/buscar" class="btn btn--accent hero__btn">
             <Icon name="lucide:search" size="18" /> {{ home.ctaSearch }}
           </NuxtLink>
-          <NuxtLink to="/mis-entradas" class="btn hero__btn hero__btn--light">
+          <NuxtLink v-if="session.isLoggedIn" to="/mis-entradas" class="btn hero__btn hero__btn--light">
             <Icon name="lucide:ticket" size="18" /> {{ home.ctaTickets }}
+          </NuxtLink>
+          <NuxtLink v-else to="/registro" class="btn hero__btn hero__btn--light">
+            <Icon name="lucide:user-plus" size="18" /> Crear cuenta
           </NuxtLink>
         </div>
       </div>

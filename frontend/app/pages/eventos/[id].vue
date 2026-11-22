@@ -6,6 +6,10 @@ const route = useRoute()
 const id = String(route.params.id)
 const preview = route.query.vista === 'previa'
 const { event: text } = useAppConfig()
+const session = useSessionStore()
+// Para comprar hay que ingresar; después de ingresar se vuelve a este evento
+const loginTo = computed(() => ({ path: '/login', query: { redirect: route.fullPath } }))
+const registerTo = computed(() => ({ path: '/registro', query: { redirect: route.fullPath } }))
 
 const { data: event, error, refresh } = await useEvent(id, preview)
 
@@ -135,7 +139,13 @@ const unavailableReason = computed(() => {
           </div>
         </div>
 
-        <form v-if="canBuy" class="buy__form" @submit.prevent="buy">
+        <div v-if="canBuy && !session.isLoggedIn" class="buy__guest">
+          <p><Icon name="lucide:lock" size="16" /> Para comprar entradas necesitás una cuenta. Es gratis y toma un minuto.</p>
+          <NuxtLink :to="loginTo" class="btn btn--primary buy__cta">Ingresar para comprar</NuxtLink>
+          <NuxtLink :to="registerTo" class="btn btn--outline">Crear cuenta</NuxtLink>
+        </div>
+
+        <form v-else-if="canBuy" class="buy__form" @submit.prevent="buy">
           <div class="qty">
             <label for="qty" class="qty__label">Cantidad</label>
             <div class="qty__ctrl">
@@ -279,6 +289,10 @@ const unavailableReason = computed(() => {
 .buy__cta { width: 100%; min-height: 52px; font-size: 1rem; }
 .buy__cta:disabled { opacity: 0.7; cursor: progress; }
 .buy__error { color: var(--color-raspberry-dark); font-size: 0.875rem; }
+.buy__guest { display: flex; flex-direction: column; gap: 10px; }
+.buy__guest p { display: flex; gap: 8px; align-items: flex-start; color: var(--text-secondary); font-size: 0.9375rem; }
+.buy__guest p :deep(svg) { flex-shrink: 0; margin-top: 3px; }
+.buy__guest .btn { width: 100%; justify-content: center; }
 .buy__closed { padding: 14px; border-radius: var(--radius-md); background: var(--tint-neutral); color: var(--text-secondary); font-weight: 500; }
 .buy__ok { display: flex; gap: 10px; padding: 14px; border-radius: var(--radius-md); background: var(--tint-forest); color: var(--color-forest-dark); font-size: 0.875rem; }
 .buy__ok p { margin: 0; }

@@ -2,6 +2,7 @@
 // Mis entradas: activas (por usar) e historial (usadas, vencidas, canceladas).
 // Datos: GET /me/tickets · Al hacer clic se abre el boleto en una ventana.
 const { tickets: text } = useAppConfig()
+definePageMeta({ auth: true }) // solo con sesión
 useHead({ title: text.title })
 
 const { data, status, error, refresh } = await useMyTickets()

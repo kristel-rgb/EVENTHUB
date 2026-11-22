@@ -25,11 +25,12 @@ export default defineAppConfig({
     disclaimer: 'EventHub es un proyecto académico. Este documento es un modelo de referencia y no constituye asesoría legal.',
   },
 
+  // Menú principal. show: 'all' (todos) · 'user' (ingresó) · 'organizer' (Organización y Super Admin)
   nav: [
-    { to: '/', label: 'Inicio' },
-    { to: '/buscar', label: 'Buscar' },
-    { to: '/mis-entradas', label: 'Mis entradas' },
-    { to: '/organizador', label: 'Organizar un evento' },
+    { to: '/', label: 'Inicio', show: 'all' },
+    { to: '/buscar', label: 'Buscar', show: 'all' },
+    { to: '/mis-entradas', label: 'Mis entradas', show: 'user' },
+    { to: '/organizador', label: 'Organizar eventos', show: 'organizer' },
   ],
 
   home: {

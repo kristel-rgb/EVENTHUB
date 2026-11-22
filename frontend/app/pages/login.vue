@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import type { Role } from '~/types/models'
 // Ingresar con nombre de usuario o correo y contraseña. POST /auth/login
+definePageMeta({ guestOnly: true })
 useHead({ title: 'Ingresar' })
 
 const route = useRoute()
@@ -20,13 +22,11 @@ const googleUnavailable = computed(() => route.query.error === 'google')
 const justRegistered = computed(() => route.query.registrado === '1')
 
 /** A dónde ir después de ingresar: la página que pidió el login o el área según el rol */
-function nextPage(role: string) {
-  const r = route.query.redirect
-  if (typeof r === 'string' && r.startsWith('/') && !r.startsWith('//')) return r
-  if (role === 'organizer') return '/organizador'
-  if (role === 'attendee') return '/mis-entradas'
-  return '/'
+function nextPage(role: Role) {
+  return safeRedirect(route.query.redirect) ?? homeForRole(role)
 }
+// Si venía de intentar comprar, se avisa por qué tiene que ingresar
+const fromPurchase = computed(() => String(route.query.redirect ?? '').startsWith('/eventos/'))
 
 async function submit() {
   serverError.value = null
@@ -50,6 +50,9 @@ async function submit() {
 
 <template>
   <AuthShell title="Ingresar" subtitle="Usá tu nombre de usuario o tu correo.">
+    <p v-if="fromPurchase && !justRegistered" class="notice" role="status">
+      <Icon name="lucide:ticket" size="18" /> Ingresá o creá una cuenta para comprar tus entradas. Después volvés al evento.
+    </p>
     <p v-if="justRegistered" class="notice notice--ok" role="status">
       <Icon name="lucide:circle-check" size="18" /> Tu cuenta quedó creada. Ya podés ingresar.
     </p>
@@ -108,7 +111,7 @@ async function submit() {
       </a>
     </form>
 
-    <p class="alt">¿No tenés cuenta? <NuxtLink to="/registro">Crear cuenta</NuxtLink></p>
+    <p class="alt">¿No tenés cuenta? <NuxtLink :to="{ path: '/registro', query: route.query.redirect ? { redirect: route.query.redirect } : {} }">Crear cuenta</NuxtLink></p>
   </AuthShell>
 </template>
 

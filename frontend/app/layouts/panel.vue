@@ -27,6 +27,10 @@ const menus: Record<'organizer' | 'admin', NavItem[]> = {
 }
 
 const items = computed(() => menus[(route.meta.panel as 'organizer' | 'admin') ?? 'organizer'])
+
+const session = useSessionStore()
+const { logout } = useAuth()
+const who = computed(() => session.user?.organizationName || session.user?.name || '')
 </script>
 
 <template>
@@ -61,6 +65,14 @@ const items = computed(() => menus[(route.meta.panel as 'organizer' | 'admin') ?
           <Icon name="lucide:arrow-left" size="22" />
           <span class="panel-nav__label">Volver al sitio</span>
         </NuxtLink>
+        <NuxtLink to="/perfil" class="panel-nav__link panel-nav__me">
+          <span class="panel-nav__avatar" aria-hidden="true">{{ who.slice(0, 1).toUpperCase() }}</span>
+          <span class="panel-nav__label">Perfil · {{ who }} ({{ session.role ? roleLabel[session.role] : '' }})</span>
+        </NuxtLink>
+        <button type="button" class="panel-nav__link panel-nav__logout" @click="logout">
+          <Icon name="lucide:log-out" size="22" />
+          <span class="panel-nav__label">Cerrar sesión</span>
+        </button>
       </nav>
     </aside>
 
@@ -96,6 +108,11 @@ const items = computed(() => menus[(route.meta.panel as 'organizer' | 'admin') ?
 .panel-nav__link:hover { background: var(--surface-dark-2); color: var(--color-sand); }
 .panel-nav__link.is-active { background: var(--color-sand); color: var(--color-ink); }
 .panel-nav__back { margin-top: auto; }
+.panel-nav__logout { border: 0; background: transparent; cursor: pointer; font: inherit; }
+.panel-nav__avatar {
+  width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-peach); color: #1F2A24; font-weight: 700; font-size: 0.875rem;
+}
 
 /* Etiqueta tipo globo a la derecha del ícono */
 .panel-nav__label {

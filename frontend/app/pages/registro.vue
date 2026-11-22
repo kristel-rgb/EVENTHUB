@@ -5,6 +5,8 @@
 import type { IdType } from '~/types/models'
 import type { RegisterForm } from '~/utils/authValidation'
 
+definePageMeta({ guestOnly: true })
+const route = useRoute()
 useHead({ title: 'Crear cuenta' })
 const { register } = useAuth()
 
@@ -66,7 +68,7 @@ async function submit() {
       password: form.password,
       acceptTerms: form.acceptTerms,
     })
-    await navigateTo({ path: '/login', query: { registrado: '1', usuario: form.username.trim() } })
+    await navigateTo({ path: '/login', query: { registrado: '1', usuario: form.username.trim(), ...(safeRedirect(route.query.redirect) ? { redirect: route.query.redirect } : {}) } })
   }
   catch (err) {
     const e = readApiError(err)
@@ -232,7 +234,7 @@ async function submit() {
       </button>
     </form>
 
-    <p class="alt">¿Ya tenés cuenta? <NuxtLink to="/login">Ingresar</NuxtLink></p>
+    <p class="alt">¿Ya tenés cuenta? <NuxtLink :to="{ path: '/login', query: route.query.redirect ? { redirect: route.query.redirect } : {} }">Ingresar</NuxtLink></p>
   </AuthShell>
 </template>
 

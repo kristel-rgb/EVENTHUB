@@ -5,17 +5,19 @@ import type { NuxtError } from '#app'
 
 const props = defineProps<{ error: NuxtError }>()
 const is404 = computed(() => props.error.statusCode === 404)
+const is403 = computed(() => props.error.statusCode === 403)
 
-useHead({ title: is404.value ? 'Página no encontrada' : 'Algo salió mal' })
+useHead({ title: is404.value ? 'Página no encontrada' : is403.value ? 'Sin acceso' : 'Algo salió mal' })
 </script>
 
 <template>
   <NuxtLayout>
     <section class="container err">
       <p class="err__code">{{ error.statusCode }}</p>
-      <h1>{{ is404 ? (error.statusMessage || 'No encontramos esta página') : 'Algo salió mal' }}</h1>
+      <h1 v-if="is403">Esta sección no está disponible para tu cuenta</h1>
+      <h1 v-else>{{ is404 ? (error.statusMessage || 'No encontramos esta página') : 'Algo salió mal' }}</h1>
       <p class="err__text">
-        {{ is404 ? 'Puede que el enlace esté mal escrito o que el contenido ya no exista.' : 'Intentá de nuevo en unos minutos.' }}
+        {{ is403 ? 'Si necesitás acceso, escribinos a soporte.' : is404 ? 'Puede que el enlace esté mal escrito o que el contenido ya no exista.' : 'Intentá de nuevo en unos minutos.' }}
       </p>
       <button class="btn btn--primary" @click="clearError({ redirect: '/' })">Volver al inicio</button>
     </section>

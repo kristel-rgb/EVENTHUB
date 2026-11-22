@@ -103,3 +103,41 @@ export function validateRegister(form: RegisterForm) {
   if (!form.acceptTerms) errors.acceptTerms = 'Tenés que aceptar los términos y la política de privacidad.'
   return errors
 }
+
+// ---------- Perfil ----------
+export interface ProfileForm {
+  firstName: string
+  lastName1: string
+  lastName2: string
+  organizationName: string
+  birthDate: string
+  phone: string
+  province: string
+  canton: string
+  addressLine: string
+}
+
+export function validateProfile(form: ProfileForm, isOrganization: boolean) {
+  const errors: Record<string, string> = {}
+  if (form.firstName.trim().length < 2) errors.firstName = 'Ingresá tu nombre.'
+  if (form.lastName1.trim().length < 2) errors.lastName1 = 'Ingresá tu primer apellido.'
+  if (isOrganization && form.organizationName.trim().length < 2) errors.organizationName = 'Ingresá el nombre de la organización.'
+  if (!/^[2-8]\d{7}$/.test(cleanPhone(form.phone))) errors.phone = 'Ingresá un teléfono de Costa Rica de 8 dígitos.'
+  const birth = new Date(`${form.birthDate}T00:00:00Z`)
+  const limit = new Date()
+  limit.setUTCFullYear(limit.getUTCFullYear() - 18)
+  if (!form.birthDate || Number.isNaN(birth.getTime())) errors.birthDate = 'Ingresá una fecha válida.'
+  else if (birth > limit) errors.birthDate = 'Tenés que ser mayor de 18 años.'
+  if (!form.province) errors.province = 'Elegí una provincia.'
+  if (form.canton.trim().length < 2) errors.canton = 'Ingresá tu cantón.'
+  return errors
+}
+
+export function validatePasswordChange(form: { currentPassword: string, newPassword: string, confirmPassword: string }) {
+  const errors: Record<string, string> = {}
+  if (!form.currentPassword) errors.currentPassword = 'Ingresá tu contraseña actual.'
+  if (!passwordRules.every(r => r.test(form.newPassword))) errors.newPassword = 'La contraseña no cumple los requisitos.'
+  else if (form.newPassword === form.currentPassword) errors.newPassword = 'Tiene que ser distinta de la actual.'
+  if (form.confirmPassword !== form.newPassword) errors.confirmPassword = 'Las contraseñas no coinciden.'
+  return errors
+}

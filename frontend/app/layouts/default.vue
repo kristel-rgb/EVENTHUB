@@ -8,7 +8,26 @@ const route = useRoute()
 watch(() => route.fullPath, () => { menuOpen.value = false })
 
 // Menú y textos generales desde app.config.ts
-const { nav: links, site, footerLinks } = useAppConfig()
+const { nav, site, footerLinks } = useAppConfig()
+const session = useSessionStore()
+const { logout } = useAuth()
+
+// Cada tipo de usuario ve su menú:
+//   sin cuenta → Inicio, Buscar · Ingresar, Crear cuenta
+//   cliente → + Mis entradas · Perfil, Cerrar sesión
+//   organización y super admin → + Organizar eventos
+const links = computed(() => nav.filter(l =>
+  l.show === 'all'
+  || (l.show === 'user' && session.isLoggedIn)
+  || (l.show === 'organizer' && canOrganize(session.role)),
+))
+const firstName = computed(() => session.user?.organizationName || session.user?.firstName || session.user?.username || '')
+const loggingOut = ref(false)
+async function onLogout() {
+  loggingOut.value = true
+  try { await logout() }
+  finally { loggingOut.value = false }
+}
 
 // En la portada el encabezado va transparente encima de la imagen del hero
 const isHome = computed(() => route.path === '/')
@@ -34,8 +53,17 @@ const isHome = computed(() => route.path === '/')
           <NuxtLink v-for="l in links" :key="l.to" :to="l.to" class="site-nav__link">
             {{ l.label }}
           </NuxtLink>
-          <div class="site-nav__actions">
-            <NuxtLink to="/login" class="btn btn--ghost btn--pill">Ingresar</NuxtLink>
+          <div v-if="session.isLoggedIn" class="site-nav__actions">
+            <NuxtLink to="/perfil" class="btn btn--ghost btn--pill site-nav__me" :aria-label="`Perfil de ${firstName}`">
+              <span class="site-nav__avatar" aria-hidden="true">{{ firstName.slice(0, 1).toUpperCase() }}</span>
+              <span>Perfil</span>
+            </NuxtLink>
+            <button type="button" class="btn btn--pill site-nav__cta" :disabled="loggingOut" @click="onLogout">
+              <Icon name="lucide:log-out" size="16" /> Cerrar sesión
+            </button>
+          </div>
+          <div v-else class="site-nav__actions">
+            <NuxtLink :to="{ path: '/login', query: route.path === '/' ? {} : { redirect: route.fullPath } }" class="btn btn--ghost btn--pill">Ingresar</NuxtLink>
             <NuxtLink to="/registro" class="btn btn--pill site-nav__cta">Crear cuenta</NuxtLink>
           </div>
         </nav>
@@ -76,6 +104,12 @@ const isHome = computed(() => route.path === '/')
 .site-nav__cta:hover { background: var(--color-forest-dark); color: var(--color-white); }
 
 .site-header__toggle { display: none; }
+.site-nav__me { gap: 8px; }
+.site-nav__avatar {
+  width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-peach); color: var(--on-peach); font-weight: 700; font-size: 0.8125rem;
+}
+.site-nav__cta:disabled { opacity: 0.6; cursor: progress; }
 
 .site-footer { background: var(--color-ink); color: var(--text-on-dark-muted); margin-top: 64px; }
 .site-footer__inner {

@@ -258,7 +258,7 @@ No las muestra el frontend, pero son necesarias para RF-01, RF-02 y la sección 
 
 | Colección | Campos | Notas |
 |---|---|---|
-| `sessions` (o `refreshtokens`) | `user`, `tokenHash`, `ip`, `userAgent`, `expiresAt`, `revokedAt`, `createdAt` | Guardar el **hash** del token, nunca el token. Índice TTL en `expiresAt`. El logout llena `revokedAt`. |
+| `sessions` (o `refreshtokens`) | `user`, `tokenHash`, `ip`, `userAgent`, `expiresAt`, `revokedAt`, `createdAt` | Guardar el **hash** del token, nunca el token. Índice TTL en `expiresAt`. El logout llena `revokedAt`; cambiar la contraseña lo llena en **todas las demás** sesiones del usuario. |
 | `accessLogs` | `user` (o `null` si no existe), `identifier` (usuario o correo que se intentó), `success`, `reason` (`ok` \| `invalid_credentials` \| `disabled` \| `rate_limited`), `ip`, `userAgent`, `createdAt` | Registro de **todos** los intentos de ingreso. Sirve para auditoría y para el límite de intentos: **5 fallidos en 15 minutos** por identificador → `429`. Índice `{ identifier: 1, createdAt: -1 }` y TTL opcional (por ejemplo 90 días). |
 | `emailtokens` | `user`, `type` (`verify_email` \| `reset_password`), `tokenHash`, `expiresAt`, `usedAt` | Un solo uso y con expiración. Índice TTL en `expiresAt`. |
 
@@ -268,9 +268,11 @@ Los permisos se definen **por rol**. El backend los revisa en **cada** endpoint 
 
 | Rol (`key`) | Nombre visible | ¿Se registra solo? | Para qué |
 |---|---|---|---|
-| `admin` | Administrador | No (se crea con el seed) | Dueño del sistema: **todos** los permisos. |
-| `attendee` | Cliente | **Sí** (formulario "Crear cuenta") | Compra entradas, ve su historial, comenta. |
-| `organizer` | Organizador | No: **solo el Admin lo asigna** | Publica y administra sus eventos. Oculto por ahora, pero existe porque el enunciado exige los tres roles (RF-03). |
+| `admin` | Super Admin | No (se crea con el seed) | Dueño del sistema: **todos** los permisos, sobre los eventos de todas las organizaciones. |
+| `attendee` | Cliente | **Sí** (formulario "Crear cuenta") | Compra entradas, ve su historial (Mis entradas) y su perfil, comenta. |
+| `organizer` | Organización | No: **solo el Super Admin lo asigna** | Publica y administra **sus** eventos: panel "Organizar eventos" completo (resumen, mis eventos, reservaciones, validar entradas). |
+
+> Sin cuenta se puede ver y buscar eventos, pero **no comprar**: `POST /events/:id/reservations` exige sesión. La tabla completa de qué ve cada tipo de cuenta está en la guía de la API, sección 1.3.
 
 Documento sugerido de la colección `roles`:
 

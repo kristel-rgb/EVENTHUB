@@ -68,6 +68,21 @@ Este documento describe **exactamente** lo que el frontend (Nuxt) ya llama y esp
 - `details`: opcional, por ejemplo los errores de validación por campo: `{ "quantity": "Debe ser un número entre 1 y 10" }`.
 - **Nunca** enviar stack traces ni mensajes internos en producción.
 
+### 1.3 Quién puede usar cada parte (separación de accesos)
+
+El frontend muestra un menú distinto según el tipo de cuenta y protege las páginas, pero **eso solo ordena la navegación: la seguridad está en la API**. Cada endpoint debe revisar el token (`401 UNAUTHORIZED` si falta o venció) y el rol (`403 FORBIDDEN` si no le corresponde).
+
+| Tipo de cuenta (`role`) | Ve en el sitio | Endpoints |
+|---|---|---|
+| Sin cuenta | Inicio, Buscar, detalle de eventos, páginas legales, Ingresar, Crear cuenta. **Puede ver y buscar, pero no comprar.** | Solo públicos: `GET /categories`, `GET /events`, `GET /events/:id`, `GET /locations`, `POST /auth/*`. |
+| Cliente (`attendee`) | Lo anterior + **Mis entradas** (con historial) y **Perfil**, y **Cerrar sesión**. | + `POST /events/:id/reservations`, `/me/*` (sección 2.14), `GET /me/tickets`, `/me/reservations/*`. |
+| Organización (`organizer`) | Lo del cliente + **Organizar eventos** (panel completo). Solo ve y cambia **sus** eventos. | + `/organizer/*`, `POST/PATCH/DELETE /events…`, `/tickets/validate`, `/files/upload-intent`. Si el evento o la reservación no es suyo → `404`. |
+| Super Admin (`admin`) | **Todo**: lo anterior sobre **todos** los eventos, y el panel de administración (pendiente). | Todos. En `/organizer/*` el admin ve los eventos de todas las organizaciones. |
+
+- **Sesión en el navegador:** el frontend guarda el `accessToken` en una cookie `eh_session` (`SameSite=Lax`, `Secure` en producción) para no perder la sesión al recargar, y al abrir la página llama `GET /auth/me` para recuperar el usuario. Cuando exista el refresh token, la idea es pasar a cookie **httpOnly** del backend (tarea F08).
+- Al cerrar sesión: `POST /auth/logout` invalida el token en el servidor.
+- **Vista previa de un borrador** (`GET /events/:id?preview=1`): solo su organización o el Super Admin. Sin sesión → `401`; con otra cuenta → `404` (para no revelar que existe).
+
 ---
 
 ## 2. Endpoints que el frontend YA usa
@@ -397,7 +412,7 @@ Datos del dashboard del organizador. **Requiere sesión de Organizador** (o Admi
 **Body**
 
 ```json
-{ "identifier": "UsuarioTest", "password": "••••••••" }
+{ "identifier": "UserTest", "password": "••••••••" }
 ```
 
 - `identifier` puede ser el **nombre de usuario** (sin importar mayúsculas) **o el correo**.
@@ -409,7 +424,7 @@ Datos del dashboard del organizador. **Requiere sesión de Organizador** (o Admi
   "accessToken": "<token>",
   "expiresAt": "2026-11-21T09:59:44.959Z",
   "user": {
-    "_id": "...", "username": "UsuarioTest", "firstName": "Usuario", "lastName1": "Test", "lastName2": "Pruebas",
+    "_id": "...", "username": "UserTest", "firstName": "Usuario", "lastName1": "Test", "lastName2": "Pruebas",
     "name": "Usuario Test", "organizationName": null, "email": "...", "phone": "88881234",
     "idType": "cedula", "idNumber": "102340567", "birthDate": "1995-04-10",
     "address": { "province": "Heredia", "canton": "Belén", "line": "" },
@@ -698,6 +713,24 @@ Errores de deshacer: `403 FORBIDDEN` (no la validó él), `409 UNDO_EXPIRED` (pa
 
 ---
 
+### 2.14 Perfil (`/perfil`)
+
+Página para **cualquier** cuenta con sesión.
+
+| Método | Ruta | Qué hace | Respuesta |
+|---|---|---|---|
+| `GET` | `/auth/me` | Usuario de la sesión (sección 2.8). El frontend lo llama al abrir el sitio para recuperar la sesión. | `200` `User` |
+| `PATCH` | `/me` | Actualiza **solo** los datos personales: `firstName`, `lastName1`, `lastName2`, `phone`, `birthDate`, `address { province, canton, line }` y, si es organización, `organizationName`. Se mandan todos juntos. | `200` `User` |
+| `POST` | `/me/password` | `{ currentPassword, newPassword }`. Verifica la actual, aplica las reglas de contraseña, guarda el **hash** y **cierra las demás sesiones** del usuario. | `200` `{ closedSessions }` |
+
+**Reglas de `PATCH /me`** (las mismas del registro): nombre y primer apellido de 2+ caracteres, teléfono de Costa Rica de 8 dígitos (`^[2-8]\d{7}$`), mayor de 18 años, provincia de la lista y cantón de 2+ caracteres. `name` se recalcula: nombre + apellidos (o `organizationName` si es organización). Errores: `400 VALIDATION_ERROR` con `details` por campo.
+
+**No se cambian desde el perfil:** `username`, `email` (necesita verificación del correo nuevo), `idType`/`idNumber` y `role`. El frontend los muestra como solo lectura y la identificación enmascarada (`•••••0567`).
+
+**Errores de `POST /me/password`:** `400 WRONG_PASSWORD` (la actual no coincide, con `details.currentPassword`) · `400 VALIDATION_ERROR` (no cumple las reglas o es igual a la actual, con `details.newPassword`). Enviar un correo avisando del cambio (Persona 4).
+
+---
+
 ## 3. Endpoints que el frontend VA a necesitar (propuesta)
 
 Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del documento de división de tareas (sección 11). **Son propuestas:** si el backend prefiere otra forma, avisen antes de programarla.
@@ -715,8 +748,7 @@ Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del
 | `POST` | `/auth/resend-verification` | `{ email }` | `204` |
 | `POST` | `/auth/forgot-password` | `{ email }`. Responder **siempre 204** (no revelar si el correo existe). | `204` |
 | `POST` | `/auth/reset-password` | `{ token, password }` | `200` |
-| `GET` | `/me` | Perfil del usuario con sesión. | `200` `User` |
-| `PATCH` | `/me` | `{ name }` | `200` `User` |
+| ~~`GET`~~ / ~~`PATCH`~~ | ~~`/me`~~ | **Ya definidos** en la sección 2.14 (`GET /auth/me`, `PATCH /me`, `POST /me/password`). | |
 
 Por decidir entre los dos:
 
@@ -802,6 +834,8 @@ Si quieren ver cómo se comporta un endpoint (por ejemplo la búsqueda con `didY
 ## 6. Checklist para el backend
 
 - [ ] Prefijo `/api/v1` y CORS para el origen del frontend.
+- [ ] Separación de accesos (sección 1.3): token y rol revisados en **cada** endpoint; comprar exige sesión.
+- [ ] Perfil (sección 2.14): `PATCH /me` y `POST /me/password` (cierra las otras sesiones).
 - [ ] Formato de error `{ code, message, details }` en **todos** los errores (middleware centralizado).
 - [ ] Fechas en ISO UTC; dinero en colones enteros.
 - [ ] `GET /categories`, `GET /events` (con `q`, `category`, `from`, `to`, `price`, `location`, paginación y `didYouMean`), `GET /locations`, `GET /events/:id`.
