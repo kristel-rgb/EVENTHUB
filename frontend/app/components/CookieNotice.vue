@@ -12,7 +12,7 @@ const seen = useCookie<boolean>('eh_cookie_notice', {
 </script>
 
 <template>
-  <aside v-if="!seen" class="cookie" role="region" aria-label="Aviso de cookies">
+  <aside v-if="!seen" class="cookie theme-fixed" role="region" aria-label="Aviso de cookies">
     <span class="cookie__icon" aria-hidden="true"><Icon name="lucide:cookie" size="22" /></span>
     <p class="cookie__text">
       {{ legal.cookieNotice }}
@@ -24,14 +24,14 @@ const seen = useCookie<boolean>('eh_cookie_notice', {
 
 <style scoped>
 .cookie {
-  position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 50;
+  position: fixed; left: 16px; right: 88px; bottom: 16px; z-index: 50; /* deja libre el botón de accesibilidad */
   max-width: 560px; margin: 0 auto 0 0;
   display: flex; align-items: center; gap: 14px; padding: 14px 16px;
   background: var(--color-ink); color: var(--color-sand);
   border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(31, 42, 36, 0.25);
 }
 .cookie__icon { color: var(--color-peach); flex-shrink: 0; display: inline-flex; }
-.cookie__text { margin: 0; font-size: 14px; line-height: 1.5; flex: 1; }
+.cookie__text { margin: 0; font-size: 0.875rem; line-height: 1.5; flex: 1; }
 .cookie__text a { color: var(--color-peach); font-weight: 600; }
 .cookie__btn { flex-shrink: 0; background: var(--color-peach); color: var(--color-ink); }
 .cookie__btn:hover { background: var(--color-sand); color: var(--color-ink); }

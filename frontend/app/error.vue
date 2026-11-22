@@ -24,7 +24,7 @@ useHead({ title: is404.value ? 'Página no encontrada' : 'Algo salió mal' })
 
 <style scoped>
 .err { padding-top: 80px; padding-bottom: 40px; max-width: 640px; }
-.err__code { font-family: var(--font-display); font-weight: 700; font-size: 96px; line-height: 1; color: var(--color-raspberry); margin: 0 0 12px; letter-spacing: -0.05em; }
-.err h1 { font-size: 40px; }
-.err__text { color: var(--text-secondary); font-size: 18px; margin: 14px 0 24px; }
+.err__code { font-family: var(--font-display); font-weight: 700; font-size: 6rem; line-height: 1; color: var(--color-raspberry); margin: 0 0 12px; letter-spacing: -0.05em; }
+.err h1 { font-size: 2.5rem; }
+.err__text { color: var(--text-secondary); font-size: 1.125rem; margin: 14px 0 24px; }
 </style>

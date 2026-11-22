@@ -212,23 +212,23 @@ function goToPage(page: number) {
 
 <style scoped>
 .search-head { padding-top: 40px; }
-.search-head h1 { font-size: clamp(36px, 5vw, 56px); letter-spacing: -0.04em; margin-bottom: 20px; }
+.search-head h1 { font-size: clamp(2.25rem, 5vw, 3.5rem); letter-spacing: -0.04em; margin-bottom: 20px; }
 
 .search {
   display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; max-width: 720px;
   background: var(--color-white); border: 1.5px solid var(--color-ink); border-radius: 20px;
 }
 .search__icon { color: var(--text-secondary); flex-shrink: 0; }
-.search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; padding: 10px 4px; font: 16px var(--font-body); color: var(--color-ink); }
+.search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; padding: 10px 4px; font: 1rem var(--font-body); color: var(--color-ink); }
 
 .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: 20px; }
 .filter { display: flex; flex-direction: column; gap: 6px; flex: 1 1 180px; max-width: 240px; }
 .filter--wide { flex-basis: 280px; max-width: 360px; }
-.filter__label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.filter__label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); }
 .filter select {
   min-height: 44px; padding: 0 36px 0 14px; border-radius: var(--radius-md);
   border: 1.5px solid var(--border); background: var(--color-white); color: var(--color-ink);
-  font: 500 15px var(--font-body); cursor: pointer; appearance: none;
+  font: 500 0.9375rem var(--font-body); cursor: pointer; appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
   background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
   background-size: 5px 5px; background-repeat: no-repeat;
@@ -239,13 +239,13 @@ function goToPage(page: number) {
 .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .chip {
   min-height: 44px; padding: 0 18px; border-radius: var(--radius-pill); cursor: pointer;
-  background: var(--color-white); border: 1.5px solid var(--border); color: var(--color-ink); font: 500 14px var(--font-body);
+  background: var(--color-white); border: 1.5px solid var(--border); color: var(--color-ink); font: 500 0.875rem var(--font-body);
 }
 .chip:hover { border-color: var(--color-forest); }
 .chip.is-active { background: var(--color-forest); border-color: var(--color-forest); color: var(--color-white); }
 
 .results { padding-top: 28px; scroll-margin-top: 16px; }
-.results__count { color: var(--text-secondary); font-size: 14px; margin: 0 0 16px; }
+.results__count { color: var(--text-secondary); font-size: 0.875rem; margin: 0 0 16px; }
 
 .suggest {
   display: flex; align-items: flex-start; gap: 10px; padding: 14px 18px; margin-bottom: 20px;
@@ -265,7 +265,7 @@ function goToPage(page: number) {
 .pager__btn {
   min-width: 44px; height: 44px; border-radius: 12px; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border); background: transparent; color: var(--color-ink); font: 500 15px var(--font-body);
+  border: 1px solid var(--border); background: transparent; color: var(--color-ink); font: 500 0.9375rem var(--font-body);
 }
 .pager__btn:hover:not(:disabled) { border-color: var(--color-ink); }
 .pager__btn.is-active { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-sand); }

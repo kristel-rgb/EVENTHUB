@@ -37,7 +37,7 @@ const serial = computed(() => (props.ticket?.code.replace(/\D/g, '') ?? '').padS
         <Icon name="lucide:x" size="22" />
       </button>
 
-      <div class="vt" :class="`is-${state}`">
+      <div class="vt theme-fixed" :class="`is-${state}`">
         <!-- Cuerpo del boleto -->
         <div class="vt__main">
           <div class="vt__frame">
@@ -149,36 +149,36 @@ const serial = computed(() => (props.ticket?.code.replace(/\D/g, '') ?? '').padS
 .vt__top {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
   padding-bottom: 10px; border-bottom: 1px solid rgba(31, 42, 36, 0.35);
-  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase;
 }
-.vt__admit { font-family: Georgia, 'Times New Roman', serif; font-style: italic; letter-spacing: 0.08em; font-size: 14px; text-transform: none; }
+.vt__admit { font-family: Georgia, 'Times New Roman', serif; font-style: italic; letter-spacing: 0.08em; font-size: 0.875rem; text-transform: none; }
 .vt__brand { font-weight: 700; }
 .vt__serial { font-family: ui-monospace, 'Courier New', monospace; color: var(--color-raspberry); font-weight: 700; }
 
 .vt__presents {
-  margin: 16px 0 6px; text-align: center; font-family: Georgia, serif; font-style: italic; font-size: 14px; color: var(--text-secondary);
+  margin: 16px 0 6px; text-align: center; font-family: Georgia, serif; font-style: italic; font-size: 0.875rem; color: var(--text-secondary);
 }
 .vt__title {
-  text-align: center; text-transform: uppercase; font-size: clamp(26px, 4.2vw, 40px);
+  text-align: center; text-transform: uppercase; font-size: clamp(1.625rem, 4.2vw, 2.5rem);
   line-height: 0.95; letter-spacing: -0.02em; color: var(--color-raspberry-dark);
 }
-.vt__ornament { text-align: center; margin: 8px 0 12px; color: var(--color-forest); letter-spacing: 0.4em; font-size: 12px; }
+.vt__ornament { text-align: center; margin: 8px 0 12px; color: var(--color-forest); letter-spacing: 0.4em; font-size: 0.75rem; }
 
 .vt__info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; margin: 0; }
 .vt__info div { border-top: 1px dashed rgba(31, 42, 36, 0.3); padding-top: 6px; }
-.vt__info dt { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-secondary); }
-.vt__info dd { margin: 2px 0 0; font-weight: 600; font-size: 15px; }
+.vt__info dt { font-size: 0.625rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-secondary); }
+.vt__info dd { margin: 2px 0 0; font-weight: 600; font-size: 0.9375rem; }
 .vt__wide { grid-column: span 2; }
 @media (min-width: 641px) { .vt__wide { grid-column: auto; } }
 
-.vt__fine { margin: auto 0 0; padding-top: 12px; font-size: 11px; color: var(--text-secondary); text-align: center; }
+.vt__fine { margin: auto 0 0; padding-top: 12px; font-size: 0.6875rem; color: var(--text-secondary); text-align: center; }
 
 .vt__stamp {
   position: absolute; top: 50%; left: 50%; margin: 0;
   transform: translate(-50%, -50%) rotate(-14deg);
   padding: 6px 22px; border: 4px solid var(--color-raspberry); border-radius: 10px;
   color: var(--color-raspberry); font-family: var(--font-display); font-weight: 700;
-  font-size: clamp(32px, 6vw, 52px); letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: clamp(2rem, 6vw, 3.25rem); letter-spacing: 0.08em; text-transform: uppercase;
   opacity: 0.85; mix-blend-mode: multiply; pointer-events: none;
 }
 
@@ -187,10 +187,10 @@ const serial = computed(() => (props.ticket?.code.replace(/\D/g, '') ?? '').padS
   border-left: 3px dotted rgba(31, 42, 36, 0.35);
   padding: 18px 16px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 12px;
 }
-.vt__stub-label { margin: 0; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; }
+.vt__stub-label { margin: 0; font-size: 0.6875rem; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; }
 .vt__qr { background: #FFFFFF; padding: 8px; border-radius: 10px; }
 .vt__stub-foot { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.vt__code { margin: 0; font-family: ui-monospace, 'Courier New', monospace; font-weight: 700; font-size: 18px; letter-spacing: 0.08em; }
+.vt__code { margin: 0; font-family: ui-monospace, 'Courier New', monospace; font-weight: 700; font-size: 1.125rem; letter-spacing: 0.08em; }
 
 /* Entradas que ya no sirven: QR apagado */
 .vt.is-used .vt__qr, .vt.is-expired .vt__qr, .vt.is-cancelled .vt__qr { opacity: 0.35; }

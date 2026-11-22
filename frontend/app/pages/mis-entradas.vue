@@ -120,19 +120,19 @@ const selected = ref<Entry | null>(null)
 
 <style scoped>
 .tickets { padding-top: 40px; max-width: 920px; }
-.tickets__head h1 { font-size: clamp(36px, 5vw, 56px); letter-spacing: -0.04em; }
+.tickets__head h1 { font-size: clamp(2.25rem, 5vw, 3.5rem); letter-spacing: -0.04em; }
 .tickets__summary { color: var(--text-secondary); margin: 8px 0 0; }
 .tickets__summary strong { color: var(--color-raspberry); }
 
 .tabs { display: flex; gap: 6px; margin: 24px 0 20px; border-bottom: 1px solid var(--border); }
 .tabs__btn {
   min-height: 48px; padding: 0 18px; border: 0; background: none; cursor: pointer;
-  font: 600 15px var(--font-body); color: var(--text-secondary);
+  font: 600 0.9375rem var(--font-body); color: var(--text-secondary);
   border-bottom: 3px solid transparent; margin-bottom: -1px;
   display: inline-flex; align-items: center; gap: 8px;
 }
 .tabs__btn[aria-selected='true'] { color: var(--color-ink); border-bottom-color: var(--color-forest); }
-.tabs__count { background: var(--tint-neutral); color: var(--text-secondary); font-size: 12px; padding: 2px 8px; border-radius: var(--radius-pill); }
+.tabs__count { background: var(--tint-neutral); color: var(--text-secondary); font-size: 0.75rem; padding: 2px 8px; border-radius: var(--radius-pill); }
 .tabs__btn[aria-selected='true'] .tabs__count { background: var(--tint-forest); color: var(--color-forest-dark); }
 
 .state { padding: 48px 0; text-align: center; color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -157,20 +157,20 @@ const selected = ref<Entry | null>(null)
   padding: 12px 6px; border-right: 2px dashed rgba(31, 42, 36, 0.25);
   text-transform: uppercase;
 }
-.tk__weekday, .tk__month { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
-.tk__day { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1; }
+.tk__weekday, .tk__month { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; }
+.tk__day { font-family: var(--font-display); font-weight: 700; font-size: 2.125rem; line-height: 1; }
 
 .tk__info { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.tk__name { font-family: var(--font-display); font-weight: 600; font-size: 18px; letter-spacing: -0.01em; }
-.tk__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 14px; color: var(--text-secondary); }
-.tk__code { font-family: ui-monospace, 'Courier New', monospace; font-size: 12px; color: var(--text-secondary); }
+.tk__name { font-family: var(--font-display); font-weight: 600; font-size: 1.125rem; letter-spacing: -0.01em; }
+.tk__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 0.875rem; color: var(--text-secondary); }
+.tk__code { font-family: ui-monospace, 'Courier New', monospace; font-size: 0.75rem; color: var(--text-secondary); }
 
 .tk__side { padding: 14px 16px 14px 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; }
-.tk__when { font-size: 12px; color: var(--text-secondary); }
+.tk__when { font-size: 0.75rem; color: var(--text-secondary); }
 .tk__chev { color: var(--text-secondary); }
 
 /* Entradas del historial más apagadas */
-.tk.is-used, .tk.is-expired, .tk.is-cancelled { background: #FBF8F3; }
+.tk.is-used, .tk.is-expired, .tk.is-cancelled { background: var(--surface-muted); }
 .tk.is-used .tk__date, .tk.is-expired .tk__date, .tk.is-cancelled .tk__date { filter: grayscale(0.7); opacity: 0.75; }
 .tk.is-cancelled .tk__name { text-decoration: line-through; color: var(--text-secondary); }
 
@@ -178,6 +178,6 @@ const selected = ref<Entry | null>(null)
   .tk { grid-template-columns: 72px minmax(0, 1fr); }
   .tk__side { grid-column: 2; flex-direction: row; justify-content: flex-start; align-items: center; padding: 0 16px 14px; }
   .tk__chev { display: none; }
-  .tk__day { font-size: 28px; }
+  .tk__day { font-size: 1.75rem; }
 }
 </style>

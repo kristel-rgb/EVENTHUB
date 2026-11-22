@@ -13,7 +13,7 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
 
 <template>
   <!-- Hero a pantalla completa -->
-  <section class="hero" aria-labelledby="hero-title">
+  <section class="hero theme-fixed" aria-labelledby="hero-title">
     <img
       class="hero__img"
       :src="home.heroImage"
@@ -116,7 +116,7 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
   gap: 32px 56px; align-items: end;
 }
 .hero__title {
-  font-size: clamp(48px, 8vw, 104px); line-height: 0.92; letter-spacing: -0.045em;
+  font-size: clamp(3rem, 8vw, 6.5rem); line-height: 0.92; letter-spacing: -0.045em;
   color: var(--color-sand); text-wrap: balance;
 }
 .hero__accent { color: var(--color-peach); }
@@ -126,27 +126,27 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
 }
 
 .hero__side { display: flex; flex-direction: column; gap: 22px; max-width: 520px; }
-.hero__lead { margin: 0; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.55; color: #E9E2D6; }
+.hero__lead { margin: 0; font-size: clamp(1.0625rem, 1.6vw, 1.25rem); line-height: 1.55; color: #E9E2D6; }
 .hero__ctas { display: flex; flex-wrap: wrap; gap: 12px; }
-.hero__btn { min-height: 54px; padding: 0 26px; font-size: 16px; }
+.hero__btn { min-height: 54px; padding: 0 26px; font-size: 1rem; }
 .hero__btn--light { background: rgba(247, 241, 232, 0.1); color: var(--color-sand); border-color: rgba(247, 241, 232, 0.7); backdrop-filter: blur(6px); }
 .hero__btn--light:hover { background: var(--color-sand); color: var(--color-ink); }
 
 .hero__scroll {
   position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
   display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px;
-  color: var(--color-sand); text-decoration: none; font-size: 14px; font-weight: 500;
+  color: var(--color-sand); text-decoration: none; font-size: 0.875rem; font-weight: 500;
 }
 .hero__scroll:hover { color: var(--color-peach); }
 .hero__scroll .iconify, .hero__scroll svg { animation: nudge 1.6s ease-in-out infinite; }
 @keyframes nudge { 50% { transform: translateY(4px); } }
 
-.hero__credit { position: absolute; right: 16px; bottom: 10px; margin: 0; font-size: 11px; color: rgba(247, 241, 232, 0.7); }
+.hero__credit { position: absolute; left: 16px; bottom: 10px; margin: 0; font-size: 0.6875rem; color: rgba(247, 241, 232, 0.7); }
 .hero__credit a { color: inherit; }
 
 @media (max-width: 640px) {
   .hero { padding: 104px 0 88px; }
-  .hero__credit { right: 50%; transform: translateX(50%); bottom: 4px; }
+  .hero__credit { left: 16px; bottom: 4px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hero__scroll .iconify, .hero__scroll svg { animation: none; }
@@ -155,7 +155,7 @@ const { data: upcoming, error } = await useEvents(upcomingFilters, 'home-upcomin
 /* ---------- Próximos eventos ---------- */
 .block { padding-top: 56px; scroll-margin-top: 16px; }
 .block__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 20px; }
-.block__title { font-size: 30px; }
+.block__title { font-size: 1.875rem; }
 .block__more { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 20px; }

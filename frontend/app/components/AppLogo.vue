@@ -18,7 +18,7 @@ withDefaults(defineProps<{ variant?: 'dark' | 'light' }>(), { variant: 'dark' })
   width: 34px; height: 34px; border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center;
 }
-.logo__text { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -0.02em; }
+.logo__text { font-family: var(--font-display); font-weight: 700; font-size: 1.375rem; letter-spacing: -0.02em; }
 
 .logo--dark { color: var(--color-ink); }
 .logo--dark .logo__mark { background: var(--color-ink); color: var(--color-peach); }

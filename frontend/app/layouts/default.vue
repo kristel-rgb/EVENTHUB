@@ -16,7 +16,7 @@ const isHome = computed(() => route.path === '/')
 
 <template>
   <div class="site">
-    <header class="site-header" :class="{ 'site-header--overlay': isHome }">
+    <header class="site-header" :class="{ 'site-header--overlay theme-fixed': isHome }">
       <div class="container site-header__inner">
         <AppLogo :variant="isHome ? 'light' : 'dark'" />
 
@@ -46,7 +46,7 @@ const isHome = computed(() => route.path === '/')
       <slot />
     </main>
 
-    <footer class="site-footer">
+    <footer class="site-footer theme-fixed">
       <div class="container site-footer__inner">
         <AppLogo variant="light" />
         <nav class="site-footer__links" aria-label="Información legal">
@@ -68,7 +68,7 @@ const isHome = computed(() => route.path === '/')
 }
 
 .site-nav { display: flex; align-items: center; gap: 28px; }
-.site-nav__link { color: var(--color-ink); text-decoration: none; font-weight: 500; font-size: 15px; }
+.site-nav__link { color: var(--color-ink); text-decoration: none; font-weight: 500; font-size: 0.9375rem; }
 .site-nav__link:hover { color: var(--color-forest); }
 .site-nav__link.router-link-exact-active { color: var(--color-forest); }
 .site-nav__actions { display: flex; gap: 8px; }
@@ -80,7 +80,7 @@ const isHome = computed(() => route.path === '/')
 .site-footer { background: var(--color-ink); color: var(--text-on-dark-muted); margin-top: 64px; }
 .site-footer__inner {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
-  padding-top: 28px; padding-bottom: 28px; font-size: 14px;
+  padding-top: 28px; padding-bottom: 28px; font-size: 0.875rem;
 }
 .site-footer p { margin: 0; }
 .site-footer__links { display: flex; flex-wrap: wrap; gap: 4px 20px; }

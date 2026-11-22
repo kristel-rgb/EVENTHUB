@@ -35,8 +35,8 @@ defineProps<{
   background: var(--tint-forest); color: var(--color-forest-dark);
 }
 .tile__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.tile__label { font-weight: 600; font-size: 15px; line-height: 1.3; }
-.tile__hint { font-size: 13px; color: var(--text-secondary); line-height: 1.35; }
+.tile__label { font-weight: 600; font-size: 0.9375rem; line-height: 1.3; }
+.tile__hint { font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.35; }
 .tile__arrow { flex-shrink: 0; color: var(--text-secondary); transition: transform 0.15s; }
 .tile:hover .tile__arrow { transform: translateX(3px); color: var(--color-forest); }
 </style>

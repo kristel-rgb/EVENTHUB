@@ -58,22 +58,22 @@ const availability = computed(() => {
 .event-card__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .event-card__cat {
   align-self: flex-start; background: var(--color-sand); color: var(--color-ink);
-  font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: var(--radius-pill);
+  font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: var(--radius-pill);
 }
 .event-card__big {
-  font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 0.95;
+  font-family: var(--font-display); font-weight: 700; font-size: 1.625rem; line-height: 0.95;
   letter-spacing: -0.04em; text-transform: uppercase;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 
 .event-card__body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .event-card__body p { margin: 0; }
-.event-card__date { font-size: 13px; font-weight: 600; color: var(--color-forest); text-transform: capitalize; }
-.event-card__name { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; }
-.event-card__place { font-size: 14px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
+.event-card__date { font-size: 0.8125rem; font-weight: 600; color: var(--color-forest); text-transform: capitalize; }
+.event-card__name { font-size: 1.1875rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; }
+.event-card__place { font-size: 0.875rem; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
 .event-card__foot { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 10px; }
 .event-card__price { font-weight: 600; }
-.event-card__spots { font-size: 13px; font-weight: 600; }
+.event-card__spots { font-size: 0.8125rem; font-weight: 600; }
 .event-card__spots.is-ok { color: var(--color-forest); }
 .event-card__spots.is-low { color: var(--color-raspberry); }
 .event-card__spots.is-out { color: var(--text-secondary); }

@@ -6,7 +6,7 @@ const { auth } = useAppConfig()
 
 <template>
   <section class="container shell" :class="{ 'shell--wide': wide }">
-    <aside class="shell__aside" aria-hidden="true">
+    <aside class="shell__aside theme-fixed" aria-hidden="true">
       <p class="shell__kicker">EventHub</p>
       <p class="shell__headline">{{ auth.asideTitle }}</p>
       <ul class="shell__list">
@@ -39,13 +39,13 @@ const { auth } = useAppConfig()
   content: ''; position: absolute; right: -70px; bottom: -70px; z-index: -1;
   width: 220px; height: 220px; border-radius: 50%; border: 36px solid var(--color-raspberry);
 }
-.shell__kicker { margin: 0 0 14px; color: var(--color-peach); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 13px; }
-.shell__headline { margin: 0 0 22px; font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1.02; letter-spacing: -0.03em; }
+.shell__kicker { margin: 0 0 14px; color: var(--color-peach); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.8125rem; }
+.shell__headline { margin: 0 0 22px; font-family: var(--font-display); font-weight: 700; font-size: 2.125rem; line-height: 1.02; letter-spacing: -0.03em; }
 .shell__list { list-style: none; margin: 0 0 60px; padding: 0; display: grid; gap: 12px; color: var(--text-on-dark-muted); }
 .shell__list li { display: flex; gap: 10px; align-items: flex-start; }
 .shell__list :deep(svg), .shell__list :deep(.iconify) { color: var(--color-peach); flex-shrink: 0; margin-top: 3px; }
 
-.shell__head h1 { font-size: clamp(32px, 4vw, 44px); letter-spacing: -0.035em; }
+.shell__head h1 { font-size: clamp(2rem, 4vw, 2.75rem); letter-spacing: -0.035em; }
 .shell__head p { margin: 8px 0 24px; color: var(--text-secondary); }
 
 @media (max-width: 860px) {

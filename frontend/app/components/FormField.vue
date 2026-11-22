@@ -22,18 +22,18 @@ const describedBy = computed(() =>
 
 <style scoped>
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.field__label { font-size: 14px; font-weight: 600; }
+.field__label { font-size: 0.875rem; font-weight: 600; }
 .field__optional { font-weight: 400; color: var(--text-secondary); }
-.field__hint { margin: 0; font-size: 13px; color: var(--text-secondary); }
-.field__error { margin: 0; font-size: 13px; color: var(--color-raspberry-dark); display: flex; align-items: center; gap: 4px; }
+.field__hint { margin: 0; font-size: 0.8125rem; color: var(--text-secondary); }
+.field__error { margin: 0; font-size: 0.8125rem; color: var(--color-raspberry-dark); display: flex; align-items: center; gap: 4px; }
 
 .field :slotted(input:not([type='checkbox'])),
 .field :slotted(select) {
   width: 100%; min-height: 48px; padding: 0 14px; border-radius: var(--radius-md);
   border: 1.5px solid var(--border); background: var(--color-white); color: var(--color-ink);
-  font: 16px var(--font-body);
+  font: 1rem var(--font-body);
 }
-.field :slotted(input:hover), .field :slotted(select:hover) { border-color: #CDBFA9; }
+.field :slotted(input:hover), .field :slotted(select:hover) { border-color: var(--text-secondary); }
 .field :slotted(input:focus), .field :slotted(select:focus) { outline: none; border-color: var(--color-forest); box-shadow: 0 0 0 3px var(--tint-forest); }
 .field.is-invalid :slotted(input), .field.is-invalid :slotted(select) { border-color: var(--color-raspberry); }
 </style>

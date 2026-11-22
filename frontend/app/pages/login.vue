@@ -114,11 +114,11 @@ async function submit() {
 
 <style scoped>
 .form { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
-.form__submit, .form__google { width: 100%; min-height: 50px; font-size: 16px; }
+.form__submit, .form__google { width: 100%; min-height: 50px; font-size: 1rem; }
 .form__submit:disabled { opacity: 0.7; cursor: progress; }
 .form__error {
   margin: 0; padding: 12px 14px; border-radius: var(--radius-md); display: flex; gap: 8px; align-items: flex-start;
-  background: var(--tint-raspberry); color: var(--color-raspberry-dark); font-size: 14px;
+  background: var(--tint-raspberry); color: var(--color-raspberry-dark); font-size: 0.875rem;
 }
 
 .pass { position: relative; }
@@ -130,12 +130,12 @@ async function submit() {
 }
 .pass__toggle:hover { color: var(--color-ink); }
 
-.divider { display: flex; align-items: center; gap: 12px; color: var(--text-secondary); font-size: 13px; }
+.divider { display: flex; align-items: center; gap: 12px; color: var(--text-secondary); font-size: 0.8125rem; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 .notice {
   margin: 0 0 16px; padding: 12px 14px; border-radius: var(--radius-md); display: flex; gap: 8px; align-items: flex-start;
-  background: var(--tint-peach); color: var(--tint-peach-text); font-size: 14px;
+  background: var(--tint-peach); color: var(--tint-peach-text); font-size: 0.875rem;
 }
 .notice--ok { background: var(--tint-forest); color: var(--color-forest-dark); }
 

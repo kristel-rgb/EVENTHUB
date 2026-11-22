@@ -3,7 +3,11 @@
    Paleta aprobada: verde bosque + frambuesa + durazno + arena
    ========================================================= */
 
-:root {
+/* ---------- Paleta clara (por defecto) ----------
+   .theme-fixed: superficies que siempre se ven oscuras (pie, menú lateral,
+   hero, aviso de cookies, boleto). Usan esta paleta en cualquier modo. */
+:root,
+.theme-fixed {
   /* Colores principales */
   --color-sand: #F7F1E8;        /* fondo general */
   --color-ink: #1F2A24;         /* texto principal, menú lateral */
@@ -12,7 +16,9 @@
   --color-raspberry: #A3174F;   /* destacados y urgencia */
   --color-raspberry-dark: #7A0F3A;
   --color-peach: #FDB98A;       /* acento cálido, siempre con texto oscuro */
-  --color-white: #FFFFFF;
+  --color-white: #FFFFFF;       /* tarjetas y campos */
+  --on-peach: #1F2A24;          /* texto sobre durazno (igual en todos los modos) */
+  --on-forest-muted: #CDE5DB;   /* texto secundario sobre fondo verde */
 
   /* Tintes para etiquetas (fondo + texto) */
   --tint-forest: #DCEDE6;
@@ -21,15 +27,22 @@
   --tint-peach-text: #7A3A12;
   --tint-neutral: #EDE6DA;
 
-  /* Texto y bordes */
+  /* Texto, bordes y superficies */
   --text-secondary: #5C5A52;
   --text-on-dark-muted: #C9D6CF;
   --border: #E7DCCB;
+  --track: #EFE6D8;             /* fondo de barras de progreso y separadores suaves */
+  --surface-muted: #FBF8F3;     /* filas apagadas (historial) */
   --surface-dark-2: #33433A;
 
+  color-scheme: light;
+}
+
+:root {
   /* Tipografía (las descarga @nuxt/fonts automáticamente) */
   --font-display: 'Space Grotesk', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, sans-serif;
+  --font-scale: 1;              /* lo cambia el menú de accesibilidad */
 
   /* Formas y espacios */
   --radius-sm: 10px;
@@ -37,6 +50,74 @@
   --radius-lg: 22px;
   --radius-pill: 999px;
   --container: 1200px;
+}
+
+/* ---------- Modo oscuro ----------
+   data-theme="dark" (elegido) o data-theme="system" con el sistema en oscuro */
+:root[data-theme='dark'] {
+  --color-sand: #121A16; --color-ink: #ECE5D9; --color-white: #1B2520;
+  --color-forest: #5CC6A6; --color-forest-dark: #8FDCC3;
+  --color-raspberry: #F27BA6; --color-raspberry-dark: #F7B3CB;
+  --on-forest-muted: #16352D;
+  --tint-forest: #173D33; --tint-raspberry: #401727; --tint-peach: #3B2A1D; --tint-peach-text: #FFCBA4; --tint-neutral: #2A3530;
+  --text-secondary: #B5BFB8; --border: #3A4A41; --track: #2C3832; --surface-muted: #161F1B;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] {
+    --color-sand: #121A16; --color-ink: #ECE5D9; --color-white: #1B2520;
+    --color-forest: #5CC6A6; --color-forest-dark: #8FDCC3;
+    --color-raspberry: #F27BA6; --color-raspberry-dark: #F7B3CB;
+    --on-forest-muted: #16352D;
+    --tint-forest: #173D33; --tint-raspberry: #401727; --tint-peach: #3B2A1D; --tint-peach-text: #FFCBA4; --tint-neutral: #2A3530;
+    --text-secondary: #B5BFB8; --border: #3A4A41; --track: #2C3832; --surface-muted: #161F1B;
+    color-scheme: dark;
+  }
+}
+
+/* ---------- Alto contraste (claro) ---------- */
+:root[data-contrast='high'] {
+  --color-ink: #0B100D; --color-forest: #08463A; --color-forest-dark: #05342B;
+  --color-raspberry: #7F0C3A; --color-raspberry-dark: #5E0829; --tint-peach-text: #5A2A0A;
+  --on-forest-muted: #E3F3EC;
+  --text-secondary: #2E2D29; --border: #6F6455; --track: #D8CCB8;
+}
+/* ---------- Alto contraste (oscuro) ---------- */
+:root[data-contrast='high'][data-theme='dark'] {
+  --color-sand: #000000; --color-ink: #FFFFFF; --color-white: #0E1411;
+  --color-forest: #7BE3C5; --color-forest-dark: #B4F0DE;
+  --color-raspberry: #FF9CC0; --color-raspberry-dark: #FFC6DA;
+  --on-forest-muted: #0B2A22;
+  --tint-forest: #123A30; --tint-raspberry: #3D0F22; --tint-peach: #3B2410; --tint-peach-text: #FFDDBF; --tint-neutral: #1F2824;
+  --text-secondary: #E3E8E5; --border: #8A9A91; --track: #33403A; --surface-muted: #070B09;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-contrast='high'][data-theme='system'] {
+    --color-sand: #000000; --color-ink: #FFFFFF; --color-white: #0E1411;
+    --color-forest: #7BE3C5; --color-forest-dark: #B4F0DE;
+    --color-raspberry: #FF9CC0; --color-raspberry-dark: #FFC6DA;
+    --on-forest-muted: #0B2A22;
+    --tint-forest: #123A30; --tint-raspberry: #3D0F22; --tint-peach: #3B2410; --tint-peach-text: #FFDDBF; --tint-neutral: #1F2824;
+    --text-secondary: #E3E8E5; --border: #8A9A91; --track: #33403A; --surface-muted: #070B09;
+  }
+}
+/* Alto contraste: enlaces subrayados, bordes más visibles y foco más grueso */
+:root[data-contrast='high'] a:not(.btn) { text-decoration: underline; text-underline-offset: 3px; }
+:root[data-contrast='high'] .card { border-width: 2px; }
+:root[data-contrast='high'] :focus-visible { outline-width: 4px; outline-offset: 3px; }
+
+/* ---------- Tamaño de letra ----------
+   Todos los tamaños están en rem: cambiar el tamaño base agranda todo el texto */
+html { font-size: calc(100% * var(--font-scale)); }
+
+/* ---------- Reducir movimiento ---------- */
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] *::before,
+:root[data-motion='reduce'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 /* ---------- Base ---------- */
@@ -48,14 +129,14 @@ html, body { margin: 0; }
 
 /* Desplazamiento suave para enlaces internos (#seccion), salvo si el usuario pidió menos movimiento */
 @media (prefers-reduced-motion: no-preference) {
-  html { scroll-behavior: smooth; }
+  :root:not([data-motion='reduce']) { scroll-behavior: smooth; }
 }
 
 body {
   background: var(--color-sand);
   color: var(--color-ink);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
@@ -92,14 +173,14 @@ a:hover { color: var(--color-forest-dark); }
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 44px; padding: 0 20px;
   border: 1.5px solid transparent; border-radius: var(--radius-md);
-  font: 600 15px var(--font-body);
+  font: 600 0.9375rem var(--font-body);
   text-decoration: none; cursor: pointer;
   transition: background-color .15s, color .15s, border-color .15s;
 }
 .btn--primary { background: var(--color-forest); color: var(--color-white); }
 .btn--primary:hover { background: var(--color-forest-dark); color: var(--color-white); }
-.btn--accent { background: var(--color-peach); color: var(--color-ink); }
-.btn--accent:hover { background: #F9A56E; color: var(--color-ink); }
+.btn--accent { background: var(--color-peach); color: var(--on-peach); }
+.btn--accent:hover { background: #F9A56E; color: var(--on-peach); }
 .btn--outline { background: transparent; color: var(--color-ink); border-color: var(--color-ink); }
 .btn--outline:hover { background: var(--color-ink); color: var(--color-sand); }
 .btn--ghost { background: transparent; color: var(--color-ink); }
@@ -110,7 +191,7 @@ a:hover { color: var(--color-forest-dark); }
 .badge {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 10px; border-radius: var(--radius-pill);
-  font-size: 12px; font-weight: 600;
+  font-size: 0.75rem; font-weight: 600;
 }
 .badge--success { background: var(--tint-forest); color: var(--color-forest-dark); }
 .badge--urgent  { background: var(--tint-raspberry); color: var(--color-raspberry-dark); }

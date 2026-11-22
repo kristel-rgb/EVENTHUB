@@ -31,7 +31,7 @@ const items = computed(() => menus[(route.meta.panel as 'organizer' | 'admin') ?
 
 <template>
   <div class="panel">
-    <aside class="panel-side">
+    <aside class="panel-side theme-fixed">
       <div class="panel-side__top">
         <AppLogo variant="light" />
         <button
@@ -88,7 +88,7 @@ const items = computed(() => menus[(route.meta.panel as 'organizer' | 'admin') ?
 .panel-nav__link {
   display: flex; align-items: center; gap: 10px;
   min-height: 44px; padding: 0 14px; border-radius: 12px;
-  color: var(--text-on-dark-muted); text-decoration: none; font-weight: 500; font-size: 15px;
+  color: var(--text-on-dark-muted); text-decoration: none; font-weight: 500; font-size: 0.9375rem;
 }
 .panel-nav__link:hover { background: var(--surface-dark-2); color: var(--color-sand); }
 .panel-nav__link.is-active { background: var(--color-sand); color: var(--color-ink); }

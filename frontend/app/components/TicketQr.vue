@@ -22,5 +22,5 @@ watchEffect(async () => {
 
 <style scoped>
 .qr { display: block; border-radius: 6px; }
-.qr--loading { display: block; background: #EFE6D8; }
+.qr--loading { display: block; background: var(--track); }
 </style>
