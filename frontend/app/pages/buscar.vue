@@ -175,6 +175,7 @@ function goToPage(page: number) {
   </section>
 
   <section ref="resultsTop" class="container results" aria-live="polite">
+    <h2 class="sr-only">Resultados</h2>
     <!-- ¿Quisiste decir...? -->
     <div v-if="result?.didYouMean" class="suggest">
       <Icon name="lucide:sparkles" size="20" />

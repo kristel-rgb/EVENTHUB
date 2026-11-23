@@ -38,7 +38,7 @@ const who = computed(() => session.user?.organizationName || session.user?.name 
 
 <template>
   <div class="panel">
-    <aside class="panel-side theme-fixed">
+    <aside class="panel-side theme-fixed" aria-label="Menú del panel">
       <div class="panel-side__top">
         <AppLogo variant="light" class="panel-side__logo" />
         <button
@@ -86,7 +86,7 @@ const who = computed(() => session.user?.organizationName || session.user?.name 
       </nav>
     </aside>
 
-    <main class="panel-main">
+    <main id="contenido" class="panel-main" tabindex="-1">
       <slot />
     </main>
   </div>

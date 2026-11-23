@@ -115,9 +115,9 @@ export function inputFromForm(f: EventFormState): Partial<EventInput> {
     accessibility: f.accessibility, importantInfo: f.importantInfo.trim(),
     cancellationPolicy: f.cancellationPolicy, contactEmail: f.contactEmail.trim(), contactPhone: cleanPhone(f.contactPhone),
     endDate,
-    // Las filas vacías de un borrador no se mandan
+    // Las filas sin precio ni cupos de un borrador no se mandan (por ejemplo la fila "General" que viene escrita)
     ticketTypes: f.ticketTypes
-      .filter(t => t._id || t.name.trim() || !empty(t.capacity) || !empty(t.price))
+      .filter(t => t._id || !empty(t.capacity) || !empty(t.price))
       .map(t => ({
         ...(t._id ? { _id: t._id } : {}),
         name: t.name.trim(),
@@ -152,7 +152,7 @@ export function validateEventForm(f: EventFormState, full: boolean) {
   // Tipos de entrada: se revisan las filas que tienen algo escrito (o todas si es para publicar)
   const seen = new Set<string>()
   f.ticketTypes.forEach((t, i) => {
-    const touched = t._id || t.name.trim() || !empty(t.capacity) || !empty(t.price)
+    const touched = t._id || !empty(t.capacity) || !empty(t.price)
     if (!touched && !full) return
     const n = t.name.trim()
     if (n.length < 2 || n.length > 40) e[ticketKey(i, 'name')] = 'Entre 2 y 40 caracteres.'

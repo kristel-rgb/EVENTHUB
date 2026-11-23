@@ -519,7 +519,7 @@ onBeforeUnmount(() => { window.removeEventListener('beforeunload', beforeUnload)
       </form>
 
       <!-- Panel lateral: estado y acciones -->
-      <aside class="side">
+      <aside class="side" aria-label="Estado y publicación del evento">
         <div class="card side__box">
           <p class="side__label">Estado</p>
           <span class="badge" :class="statusInfo[status]?.badge">{{ statusInfo[status]?.label }}</span>
@@ -678,7 +678,7 @@ onBeforeUnmount(() => { window.removeEventListener('beforeunload', beforeUnload)
 .todo { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 0.875rem; }
 .todo li { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); }
 .todo li.is-ok { color: var(--color-forest-dark); }
-.todo li.is-opt:not(.is-ok) { opacity: 0.8; }
+.todo li.is-opt:not(.is-ok) { color: var(--text-secondary); }
 .side__actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .side__actions .btn { width: 100%; }
 .side__actions .btn:disabled { opacity: 0.6; cursor: progress; }

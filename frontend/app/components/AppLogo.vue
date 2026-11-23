@@ -4,7 +4,7 @@ withDefaults(defineProps<{ variant?: 'dark' | 'light' }>(), { variant: 'dark' })
 </script>
 
 <template>
-  <NuxtLink to="/" class="logo" :class="`logo--${variant}`">
+  <NuxtLink to="/" class="logo" :class="`logo--${variant}`" aria-label="eventhub, ir al inicio">
     <span class="logo__mark" aria-hidden="true">
       <Icon name="lucide:ticket" size="18" />
     </span>

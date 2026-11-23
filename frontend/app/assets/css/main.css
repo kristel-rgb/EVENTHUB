@@ -168,6 +168,15 @@ a:hover { color: var(--color-forest-dark); }
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
+/* Enlace para saltar al contenido: aparece solo al llegar con el teclado */
+.skip-link {
+  position: fixed; top: 8px; left: 8px; z-index: 1000; padding: 10px 16px; border-radius: var(--radius-sm);
+  background: var(--color-ink); color: var(--color-sand); font-weight: 600; text-decoration: none;
+  transform: translateY(-150%); transition: transform 0.15s;
+}
+.skip-link:focus { transform: none; }
+main:focus { outline: none; }
+
 /* ---------- Botones ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

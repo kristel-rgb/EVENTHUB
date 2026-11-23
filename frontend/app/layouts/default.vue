@@ -56,7 +56,7 @@ const isHome = computed(() => route.path === '/' && !(session.isLoggedIn && sess
             {{ l.label }}
           </NuxtLink>
           <div v-if="session.isLoggedIn" class="site-nav__actions">
-            <NuxtLink to="/perfil" class="btn btn--ghost btn--pill site-nav__me" :aria-label="`Perfil de ${firstName}`">
+            <NuxtLink to="/perfil" class="btn btn--ghost btn--pill site-nav__me">
               <span class="site-nav__avatar" aria-hidden="true">{{ firstName.slice(0, 1).toUpperCase() }}</span>
               <span>Perfil</span>
             </NuxtLink>
@@ -72,7 +72,7 @@ const isHome = computed(() => route.path === '/' && !(session.isLoggedIn && sess
       </div>
     </header>
 
-    <main class="site-main">
+    <main id="contenido" class="site-main" tabindex="-1">
       <slot />
     </main>
 

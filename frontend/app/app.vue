@@ -4,6 +4,7 @@ useA11yRoot()
 </script>
 
 <template>
+  <a href="#contenido" class="skip-link">Saltar al contenido</a>
   <NuxtRouteAnnouncer />
   <NuxtLayout>
     <NuxtPage />
