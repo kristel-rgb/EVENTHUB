@@ -49,6 +49,11 @@ export interface User {
   permissions: string[]           // permisos del rol, por ejemplo 'events:create'
   status: 'active' | 'disabled'
   emailVerified: boolean
+  // Tiene los datos que pide la pasarela de pagos (identificación, teléfono, nacimiento y dirección).
+  // Las cuentas creadas con Google empiezan en false: sin esto no pueden comprar.
+  profileComplete: boolean
+  // false si la cuenta se creó con Google y todavía no eligió una contraseña
+  hasPassword: boolean
   lastLoginAt: string | null
   createdAt: string
 }
@@ -58,6 +63,27 @@ export interface AuthResponse {
   accessToken: string
   expiresAt: string
   user: User
+}
+
+/** Respuesta de POST /auth/google/exchange */
+export interface GoogleExchangeResponse extends AuthResponse {
+  isNew: boolean                  // true si la cuenta se acaba de crear con Google
+}
+
+/** Cuerpo de POST /me/complete-profile (cuentas creadas con Google) */
+export interface CompleteProfilePayload {
+  firstName: string
+  lastName1: string
+  lastName2: string
+  username: string
+  idType: IdType
+  idNumber: string
+  phone: string
+  birthDate: string
+  province: string
+  canton: string
+  addressLine: string
+  acceptTerms: boolean
 }
 
 /** Cuerpo de POST /auth/register */

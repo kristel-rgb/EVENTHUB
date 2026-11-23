@@ -268,10 +268,10 @@ Comprar o reservar entradas. **Requiere sesión de Asistente.**
 1. El evento existe → si no, `404 EVENT_NOT_FOUND`.
 2. `status === "published"` → si no, `409 EVENT_NOT_AVAILABLE`.
 3. La fecha es futura → si no, `409 EVENT_FINISHED`.
-4. `ticketType` es el `_id` de uno de los `ticketTypes` del evento (puede omitirse si el evento tiene un solo tipo) → si no, `400 INVALID_TICKET_TYPE`.
-5. `quantity` es entero entre **1 y `event.maxPerPurchase`** (máx. 10) → si no, `400 INVALID_QUANTITY`.
-6. Hay cupo suficiente **en ese tipo** → si no, `409 NOT_ENOUGH_SPOTS` (*"Solo quedan N entradas VIP."* o *"Las entradas VIP se agotaron."*).
-5. Hay cupo suficiente → si no, `409 NOT_ENOUGH_SPOTS` con el mensaje *"Solo quedan N espacios disponibles."*.
+4. La cuenta tiene el **perfil completo** (`profileComplete`, sección 2.10) → si no, `403 PROFILE_INCOMPLETE` (*"Completá tu perfil para comprar entradas."*). Pasa con las cuentas creadas con Google.
+5. `ticketType` es el `_id` de uno de los `ticketTypes` del evento (puede omitirse si el evento tiene un solo tipo) → si no, `400 INVALID_TICKET_TYPE`.
+6. `quantity` es entero entre **1 y `event.maxPerPurchase`** (máx. 10) → si no, `400 INVALID_QUANTITY`.
+7. Hay cupo suficiente **en ese tipo** → si no, `409 NOT_ENOUGH_SPOTS` (*"Solo quedan N entradas VIP."* o *"Las entradas VIP se agotaron."*).
 
 > ⚠️ **Evitar sobreventa:** descontar el cupo con **una sola operación atómica**, por ejemplo:
 > `Event.findOneAndUpdate({ _id, status: 'published', availableSpots: { $gte: quantity } }, { $inc: { availableSpots: -quantity } }, { new: true })`.
@@ -502,9 +502,47 @@ El frontend ya envía `phone` e `idNumber` **sin guiones ni espacios** y `email`
 
 ---
 
-### 2.10 `GET /auth/google`
+### 2.10 Ingresar con Google y completar el perfil
 
-Redirige a Google OAuth 2.0. Al volver (`/auth/google/callback`), el backend crea o enlaza la cuenta (como **Cliente** si es nueva) y redirige al frontend con la sesión iniciada. Si falla, redirigir a `FRONTEND_URL/login?error=google`; el frontend ya muestra un aviso con ese parámetro.
+Pantallas: botón **Continuar con Google** en `/login` y **Crear cuenta con Google** en `/registro`; vuelta en `/auth/google/callback`; datos faltantes en `/completar-perfil`.
+
+**Qué da Google y qué no.** Con los permisos `openid email profile` (no piden revisión de Google) llegan: `sub` (id fijo de Google), `email`, `email_verified`, `given_name`, `family_name` y `picture`. **No** llegan teléfono, identificación, fecha de nacimiento ni dirección, y la pasarela de pagos y la verificación de edad los necesitan. Por eso las cuentas creadas con Google nacen con el **perfil incompleto** y no pueden comprar hasta completarlo.
+
+**Flujo**
+
+1. El frontend abre `GET {API}/auth/google?redirect=/eventos/123` (navegación completa, no `fetch`). El backend guarda `redirect` y un valor aleatorio contra CSRF en el parámetro `state` y redirige a Google.
+2. Google vuelve a `GET {API}/auth/google/callback?code=…&state=…`. El backend:
+   - revisa `state`, cambia el `code` de Google por el *ID token* y lo **valida** (firma, `aud` = nuestro client id, `iss` de Google, vencimiento) y exige `email_verified: true`;
+   - busca la cuenta por `googleId` (= `sub`). Si no existe, busca por correo: si hay una cuenta con ese correo, **la enlaza** (le guarda el `googleId` y marca `emailVerified: true`). Si no, **crea** una cuenta de **Cliente** (`role: attendee`) sin contraseña, con `firstName` = `given_name`, apellidos separados de `family_name` ("Méndez Solís" → `lastName1: Méndez`, `lastName2: Solís`), `emailVerified: true` y un `username` sugerido libre (`laura.mendez`, `laura.mendez2`…);
+   - **no** guarda los tokens de Google (solo se usan para saber quién es);
+   - crea un **código de un solo uso** (vence en 60 s; se guarda solo su hash) y redirige a `FRONTEND_URL/auth/google/callback?code=<código>&redirect=/eventos/123`.
+   - Si algo falla, redirige a `FRONTEND_URL/auth/google/callback?error=<motivo>` con `access_denied` (la persona canceló), `email_not_verified`, `account_disabled` u otro (mensaje genérico).
+3. El frontend cambia el código por la sesión:
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| `POST` | `/auth/google/exchange` | `{ code }` | `200` `{ accessToken, expiresAt, user, isNew }` (igual que el login, más `isNew`). Errores: `400 GOOGLE_CODE_INVALID` (vencido, usado o inexistente) · `403 ACCOUNT_DISABLED`. |
+
+   > El token de sesión **nunca** viaja en la URL: solo el código, que sirve una vez y por 60 segundos.
+
+4. Si `user.profileComplete` es `false`, el frontend lleva a `/completar-perfil?redirect=…`. Se puede dejar **para después** y seguir navegando, pero en todas las páginas aparece el aviso "Completá tu perfil para poder comprar entradas" y el detalle del evento cambia el botón de compra por **Completar mi perfil**.
+
+**Completar el perfil**
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| `POST` | `/me/complete-profile` | `{ firstName, lastName1, lastName2?, username, idType, idNumber, phone, birthDate, province, canton, addressLine?, acceptTerms }` | `200` el `User` actualizado, con `profileComplete: true`. |
+
+- Mismas reglas que `POST /auth/register` (sección 2.9) **sin** correo ni contraseña: el correo no se cambia (ya lo confirmó Google). `username` e `idNumber` únicos sin contar la propia cuenta. `acceptTerms` debe ser `true` (con Google todavía no aceptó los términos de EventHub). Errores: `400 VALIDATION_ERROR` con `details` por campo.
+
+**Campos nuevos en `User`** (respuesta de login, `/auth/me` y `exchange`):
+
+| Campo | Qué es |
+|---|---|
+| `profileComplete` | `true` si tiene `phone`, `idType`, `idNumber`, `birthDate` y `address` (provincia y cantón). Se **calcula**, no hace falta guardarlo. |
+| `hasPassword` | `false` si la cuenta se creó con Google y todavía no eligió contraseña. El perfil cambia "Cambiar contraseña" por **Crear una contraseña**, que usa `POST /auth/forgot-password` (sección 2.17) para mandarle el enlace. |
+
+**Regla para comprar:** `POST /events/:id/reservations` responde `403 PROFILE_INCOMPLETE` si `profileComplete` es `false` (sección 2.5).
 
 ---
 
@@ -1016,8 +1054,7 @@ Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del
 | ~~`POST`~~ | ~~`/auth/register`~~, ~~`/auth/login`~~ | **Ya definidos** en las secciones 2.8 y 2.9. | |
 | `POST` | `/auth/refresh` | Usa el refresh token. | `200` `{ accessToken }` |
 | `POST` | `/auth/logout` | Invalida el refresh token. | `204` |
-| `GET` | `/auth/google` | Redirige a Google. | `302` |
-| `GET` | `/auth/google/callback` | Redirige al frontend con la sesión iniciada. | `302` a `FRONTEND_URL/...` |
+| ~~`GET`~~ | ~~`/auth/google`~~, ~~`/auth/google/callback`~~ | **Ya definidos** en la sección 2.10 (con `POST /auth/google/exchange` y `POST /me/complete-profile`). | |
 | ~~`POST`~~ | ~~`/auth/verify-email`~~, ~~`/auth/resend-verification`~~, ~~`/auth/forgot-password`~~, ~~`/auth/reset-password`~~ | **Ya definidos** en la sección 2.17 (también la invitación y `GET /auth/reset-password/check`). | |
 | ~~`GET`~~ / ~~`PATCH`~~ | ~~`/me`~~ | **Ya definidos** en la sección 2.14 (`GET /auth/me`, `PATCH /me`, `POST /me/password`). | |
 
@@ -1063,6 +1100,8 @@ Por decidir entre los dos:
 | 400 | `INVALID_QUANTITY` | Cantidad fuera de 1–10. |
 | 401 | `UNAUTHORIZED` | Falta el token o venció. El frontend intentará `/auth/refresh` y, si falla, mandará al login. |
 | 403 | `FORBIDDEN` | Con sesión pero sin permiso (rol o no es el dueño). |
+| 403 | `PROFILE_INCOMPLETE` | Comprar sin identificación, teléfono, nacimiento o dirección (cuentas de Google, sección 2.10). |
+| 400 | `GOOGLE_CODE_INVALID` | El código de vuelta de Google venció o ya se usó (sección 2.10). |
 | 404 | `EVENT_NOT_FOUND`, `NOT_FOUND` | No existe. |
 | 409 | `EVENT_NOT_AVAILABLE`, `EVENT_FINISHED`, `NOT_ENOUGH_SPOTS` | Reservas. |
 | 404 | `TICKET_INVALID` | QR o código que no corresponde a ninguna entrada (o firma inválida). |
@@ -1114,6 +1153,7 @@ Si quieren ver cómo se comporta un endpoint (por ejemplo la búsqueda con `didY
 - [ ] Validación en la puerta (sección 2.13): firma del QR, operación atómica, deshacer en 2 minutos y `validatedBy`/`gate`.
 - [ ] Inicio del cliente (sección 2.15): `GET /me/feed`, `GET /events?sort=popular` y registrar `eventUpdates` al cambiar o cancelar un evento publicado.
 - [ ] Cuentas y permisos (sección 2.16): crear cuentas con invitación por correo, permisos ajustados por cuenta y revisar **permisos** (no solo el rol) en cada endpoint.
+- [ ] Google (sección 2.10): validar el ID token, `state` contra CSRF, enlazar por correo verificado, código de un solo uso de 60 s, `POST /me/complete-profile` y `403 PROFILE_INCOMPLETE` al comprar.
 - [ ] Recuperar contraseña, verificar correo e invitaciones (sección 2.17): tokens de un solo uso guardados como hash, vencimientos y cierre de sesiones al cambiar la contraseña.
 - [ ] Reseñas (sección 2.18): solo quien asistió, una por evento, y recalcular `ratingAvg` / `ratingCount`.
 - [ ] Reportes (sección 2.19): `POST /reports` → Lambda → S3 y URL firmada de 15 minutos.

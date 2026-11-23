@@ -168,6 +168,9 @@ a:hover { color: var(--color-forest-dark); }
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
+/* Los íconos nunca se achican dentro de filas con texto largo */
+.iconify { flex-shrink: 0; }
+
 /* Enlace para saltar al contenido: aparece solo al llegar con el teclado */
 .skip-link {
   position: fixed; top: 8px; left: 8px; z-index: 1000; padding: 10px 16px; border-radius: var(--radius-sm);

@@ -104,6 +104,18 @@ export function validateRegister(form: RegisterForm) {
   return errors
 }
 
+// ---------- Completar el perfil (cuentas creadas con Google) ----------
+export type CompleteProfileForm = Omit<RegisterForm, 'email' | 'password' | 'confirmPassword'>
+
+/** Mismas reglas que Crear cuenta, sin correo ni contraseña (el correo ya lo confirmó Google) */
+export function validateCompleteProfile(form: CompleteProfileForm) {
+  const errors = validateRegister({ ...form, email: 'cuenta@google.com', password: 'Aa123456', confirmPassword: 'Aa123456' })
+  delete errors.email
+  delete errors.password
+  delete errors.confirmPassword
+  return errors
+}
+
 // ---------- Perfil ----------
 export interface ProfileForm {
   firstName: string

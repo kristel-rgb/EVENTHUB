@@ -1,4 +1,4 @@
-import type { AuthResponse, RegisterPayload, User } from '~/types/models'
+import type { AuthResponse, CompleteProfilePayload, GoogleExchangeResponse, RegisterPayload, User } from '~/types/models'
 
 /** Inicio de sesión, registro y cierre de sesión contra /auth/* */
 export function useAuth() {
@@ -48,5 +48,26 @@ export function useAuth() {
   /** Con sesión no hace falta el correo */
   const resendVerification = (email?: string) => api('/auth/resend-verification', { method: 'POST', body: email ? { email } : {} })
 
-  return { login, register, logout, forgotPassword, checkResetToken, resetPassword, verifyEmail, resendVerification }
+  /** Ingreso con Google: cambia el código de un solo uso que el backend puso en la URL de vuelta por la sesión */
+  async function googleExchange(code: string) {
+    const res = await api<GoogleExchangeResponse>('/auth/google/exchange', { method: 'POST', body: { code } })
+    session.setSession(res)
+    writeSessionCookie(res.accessToken, res.expiresAt)
+    return res
+  }
+
+  /** Guarda los datos que Google no da (identificación, teléfono, nacimiento, dirección) */
+  async function completeProfile(payload: CompleteProfilePayload) {
+    const user = await api<User>('/me/complete-profile', { method: 'POST', body: payload })
+    session.user = user
+    return user
+  }
+
+  /** Dirección del backend que empieza el ingreso con Google (vuelve a `redirect` al terminar) */
+  function googleLoginUrl(redirect?: string | null) {
+    const safe = safeRedirect(redirect)
+    return `${useRuntimeConfig().public.apiBase}/auth/google${safe ? `?redirect=${encodeURIComponent(safe)}` : ''}`
+  }
+
+  return { login, register, logout, forgotPassword, checkResetToken, resetPassword, verifyEmail, resendVerification, googleExchange, completeProfile, googleLoginUrl }
 }

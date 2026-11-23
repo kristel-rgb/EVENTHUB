@@ -31,7 +31,7 @@ const dirty = computed(() => JSON.stringify(form) !== saved.value)
 const errors = ref<Record<string, string>>({})
 const saving = ref(false)
 const notice = ref<{ tone: 'ok' | 'error', text: string } | null>(null)
-const incomplete = computed(() => !user.value.phone || !user.value.birthDate || !user.value.address)
+const incomplete = computed(() => !user.value.profileComplete)
 
 function clearErr(k: string) { if (errors.value[k]) { const { [k]: _x, ...rest } = errors.value; errors.value = rest } }
 
@@ -91,7 +91,16 @@ async function savePassword() {
 }
 
 // ---------- Confirmar correo ----------
-const { resendVerification } = useAuth()
+const { resendVerification, forgotPassword } = useAuth()
+
+// Cuenta creada con Google sin contraseña: se le manda un enlace para elegir una (mismo flujo de "olvidé mi contraseña")
+const pwLinkSent = ref(false)
+const pwLinkSending = ref(false)
+async function sendPasswordLink() {
+  pwLinkSending.value = true
+  try { await forgotPassword(user.value.email); pwLinkSent.value = true }
+  finally { pwLinkSending.value = false }
+}
 const verifySent = ref(false)
 const verifySending = ref(false)
 async function sendVerify() {
@@ -130,9 +139,16 @@ const maskedId = computed(() => {
       </nav>
     </header>
 
-    <p v-if="incomplete" class="notice notice--warm" role="status">
+    <p v-if="incomplete && user.role === 'attendee'" class="notice notice--warm" role="status">
       <Icon name="lucide:info" size="18" />
-      <span>Completá tu teléfono, fecha de nacimiento y dirección: la pasarela de pagos los usa para que compres más rápido.</span>
+      <span>
+        Te faltan datos para poder comprar entradas (identificación, teléfono, fecha de nacimiento o dirección).
+        <NuxtLink to="/completar-perfil?redirect=/perfil">Completar mi perfil</NuxtLink>
+      </span>
+    </p>
+    <p v-else-if="incomplete" class="notice notice--warm" role="status">
+      <Icon name="lucide:info" size="18" />
+      <span>Completá tu teléfono, fecha de nacimiento y dirección.</span>
     </p>
 
     <div class="cols">
@@ -223,8 +239,20 @@ const maskedId = computed(() => {
           <p class="muted">Para cambiar el correo o la identificación, escribinos a <a :href="`mailto:${legal.contactEmail}`">{{ legal.contactEmail }}</a>.</p>
         </section>
 
+        <!-- Cuenta creada con Google: todavía no tiene contraseña -->
+        <section v-if="!user.hasPassword" class="card sec" aria-labelledby="google-title">
+          <h2 id="google-title">Ingresás con Google</h2>
+          <p class="muted">Tu cuenta no tiene contraseña: entrás con el botón "Continuar con Google". Si también querés ingresar con tu usuario y una contraseña, te mandamos un enlace a tu correo para crearla.</p>
+          <div class="actions">
+            <button v-if="!pwLinkSent" type="button" class="btn btn--outline" :disabled="pwLinkSending" @click="sendPasswordLink">
+              <Icon name="lucide:key-round" size="16" /> {{ pwLinkSending ? 'Enviando…' : 'Crear una contraseña' }}
+            </button>
+            <p v-else class="notice notice--ok" role="status">Te enviamos el enlace a {{ user.email }}. Vence en 30 minutos.</p>
+          </div>
+        </section>
+
         <!-- Contraseña -->
-        <form class="card sec" novalidate @submit.prevent="savePassword">
+        <form v-else class="card sec" novalidate @submit.prevent="savePassword">
           <h2>Cambiar contraseña</h2>
           <p v-if="pwNotice" class="notice" :class="`notice--${pwNotice.tone}`" role="status">{{ pwNotice.text }}</p>
           <FormField id="currentPassword" label="Contraseña actual" :error="pwErrors.currentPassword">

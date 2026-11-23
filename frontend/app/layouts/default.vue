@@ -33,6 +33,10 @@ async function onLogout() {
 // En la portada el encabezado va transparente encima de la imagen del hero
 // (el cliente con sesión tiene un inicio personal con encabezado normal)
 const isHome = computed(() => route.path === '/' && !(session.isLoggedIn && session.role === 'attendee'))
+
+// Cuentas creadas con Google: hasta completar el perfil pueden navegar, pero no comprar
+const needsProfile = computed(() => session.isLoggedIn && session.role === 'attendee' && session.user?.profileComplete === false && route.path !== '/completar-perfil')
+const profileDone = computed(() => route.query.perfil === 'completo' && session.user?.profileComplete)
 </script>
 
 <template>
@@ -71,6 +75,20 @@ const isHome = computed(() => route.path === '/' && !(session.isLoggedIn && sess
         </nav>
       </div>
     </header>
+
+    <div v-if="needsProfile" class="profile-bar" role="status">
+      <div class="container profile-bar__inner">
+        <Icon name="lucide:user-round-pen" size="18" />
+        <span>Completá tu perfil para poder comprar entradas.</span>
+        <NuxtLink :to="{ path: '/completar-perfil', query: { redirect: route.fullPath } }" class="profile-bar__link">Completar ahora</NuxtLink>
+      </div>
+    </div>
+    <div v-else-if="profileDone" class="profile-bar profile-bar--ok" role="status">
+      <div class="container profile-bar__inner">
+        <Icon name="lucide:circle-check" size="18" />
+        <span>Tu perfil quedó completo. Ya podés comprar entradas.</span>
+      </div>
+    </div>
 
     <main id="contenido" class="site-main" tabindex="-1">
       <slot />
@@ -149,5 +167,14 @@ const isHome = computed(() => route.path === '/' && !(session.isLoggedIn && sess
 
   .site-header--overlay .site-nav.is-open { background: var(--color-ink); border-radius: 16px; padding: 8px 16px 16px; }
   .site-header--overlay .site-nav__link { border-bottom-color: rgba(247, 241, 232, 0.15); }
+}
+.profile-bar { background: var(--tint-peach); color: var(--tint-peach-text, var(--color-ink)); font-size: 0.9375rem; }
+.profile-bar--ok { background: var(--tint-forest); color: var(--color-forest-dark); }
+.profile-bar__inner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding-top: 10px; padding-bottom: 10px; }
+.profile-bar__link { font-weight: 700; color: inherit; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+@media (max-width: 600px) {
+  .profile-bar__inner { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .profile-bar__inner > :first-child { margin-top: 2px; }
+  .profile-bar__link { grid-column: 2; justify-self: start; }
 }
 </style>

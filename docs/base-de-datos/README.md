@@ -85,8 +85,8 @@ Perfil **completo** del usuario. Además de identificarlo, son los datos que la 
 | `idNumber` | String | ✓* | **Único**. Sin guiones ni espacios. Cédula: 9 dígitos · DIMEX: 11–12 dígitos · Pasaporte: 6–20 letras o números. |
 | `birthDate` | String o Date | ✓* | `AAAA-MM-DD`. Mayor de 18 años. |
 | `address` | Objeto | ✓* | `{ province, canton, line }`. `province`: una de las 7 provincias. `line` (dirección exacta) es opcional. |
-| `passwordHash` | String | ✓ | bcrypt o Argon2. `select: false`. **Nunca** la contraseña en texto plano. Vacío solo si la cuenta es de Google. |
-| `googleId` | String | — | Único y *sparse*, si inició sesión con Google. |
+| `passwordHash` | String | ✓ | bcrypt o Argon2. `select: false`. **Nunca** la contraseña en texto plano. Vacío si la cuenta se creó con Google (hasta que elija una) o es una invitación sin aceptar. |
+| `googleId` | String | — | Único y *sparse*. Es el `sub` de Google (fijo aunque la persona cambie de correo). Se llena al crear o enlazar la cuenta con Google. |
 | `role` | String enum | ✓ | `admin` \| `attendee` \| `organizer`. Por defecto `attendee` (ver sección 3.8). |
 | `accountType` | String enum \| null | — | Solo si `role: organizer`: `organization` (organización de eventos) \| `venue` (lugar de eventos). |
 | `permissionOverrides` | `{ granted: [String], revoked: [String] }` | ✓ | Ajustes del Super Admin sobre los permisos del rol. Permisos efectivos = rol + `granted` − `revoked`. Por defecto vacíos. |
@@ -95,11 +95,15 @@ Perfil **completo** del usuario. Además de identificarlo, son los datos que la 
 | `lastLoginAt` | Date \| null | — | Último ingreso exitoso. |
 | `createdAt` / `updatedAt` | Date | ✓ | timestamps. |
 
-\* Obligatorios para las cuentas que se registran desde el formulario. El administrador creado por el *seed* puede tenerlos vacíos hasta que complete su perfil.
+\* Obligatorios para las cuentas que se registran desde el formulario. Pueden estar vacíos en las cuentas creadas **con Google** (Google no los da) y en el administrador del *seed*, hasta que completen su perfil.
+
+**Perfil completo (`profileComplete`):** no es un campo guardado; se **calcula** = tiene `phone`, `idType`, `idNumber`, `birthDate` y `address.province` + `address.canton`. Si es `false`, la persona puede navegar pero **no comprar** (`403 PROFILE_INCOMPLETE`). Se completa con `POST /me/complete-profile` (API, sección 2.10). También se envía `hasPassword` (= `passwordHash` no vacío).
+
+**Cuentas de Google:** de Google se guardan solo `googleId`, `email`, `emailVerified: true`, `firstName`, `lastName1`/`lastName2` (separados de `family_name`) y, si se quiere, la foto. **No** se guardan los tokens de Google.
 
 **Índices:** `{ email: 1 }` único · `{ username: 1 }` único con *collation* que ignore mayúsculas · `{ idNumber: 1 }` único *sparse* · `{ googleId: 1 }` único *sparse* · `{ role: 1, status: 1 }`.
 
-**Lo que ve el frontend** (respuesta de login y `/auth/me`): todos los campos **menos** `passwordHash` y `googleId`, más `permissions` (la lista de permisos de su rol). En otras respuestas solo `{ _id, name }`.
+**Lo que ve el frontend** (respuesta de login y `/auth/me`): todos los campos **menos** `passwordHash` y `googleId`, más `permissions` (la lista de permisos de su rol), `profileComplete` y `hasPassword`. En otras respuestas solo `{ _id, name }`.
 
 **Primer administrador:** se crea con el script de *seed* leyendo sus datos de **variables de entorno** (`SEED_ADMIN_USERNAME`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, …). Nunca escribir sus credenciales en el código ni subirlas a Git.
 
@@ -278,6 +282,7 @@ No las muestra el frontend, pero son necesarias para RF-01, RF-02 y la sección 
 |---|---|---|
 | `sessions` (o `refreshtokens`) | `user`, `tokenHash`, `ip`, `userAgent`, `expiresAt`, `revokedAt`, `createdAt` | Guardar el **hash** del token, nunca el token. Índice TTL en `expiresAt`. El logout llena `revokedAt`; cambiar la contraseña lo llena en **todas las demás** sesiones del usuario. |
 | `accessLogs` | `user` (o `null` si no existe), `identifier` (usuario o correo que se intentó), `success`, `reason` (`ok` \| `invalid_credentials` \| `disabled` \| `rate_limited`), `ip`, `userAgent`, `createdAt` | Registro de **todos** los intentos de ingreso. Sirve para auditoría y para el límite de intentos: **5 fallidos en 15 minutos** por identificador → `429`. Índice `{ identifier: 1, createdAt: -1 }` y TTL opcional (por ejemplo 90 días). |
+| `logincodes` | `user`, `codeHash`, `isNew`, `expiresAt`, `usedAt` | Código de un solo uso de la vuelta de Google (API, sección 2.10): vence a los **60 segundos**. Índice TTL en `expiresAt`. Puede ir en la misma colección que `emailtokens` con `type: 'google_login'`. |
 | `emailtokens` | `user`, `type` (`verify` \| `reset` \| `invite`), `tokenHash`, `expiresAt`, `usedAt`, `createdAt` | Un solo uso y con expiración: `reset` 30 min, `verify` 24 h, `invite` 48 h (API sección 2.17). Guardar solo el **hash** (SHA-256) del token. Al crear uno nuevo, marcar como usados los anteriores del mismo `user` y `type`. Índices `{ tokenHash: 1 }` único y TTL en `expiresAt`. |
 
 ### 3.8 `roles` y permisos

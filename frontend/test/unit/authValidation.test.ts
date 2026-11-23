@@ -1,6 +1,6 @@
 // Reglas de los formularios de cuenta: son las mismas que valida el backend.
 import { describe, expect, it } from 'vitest'
-import { cleanIdNumber, cleanPhone, passwordRules, validateLogin, validatePasswordChange, validateProfile, validateRegister } from '~/utils/authValidation'
+import { cleanIdNumber, cleanPhone, passwordRules, validateCompleteProfile, validateLogin, validatePasswordChange, validateProfile, validateRegister } from '~/utils/authValidation'
 import type { RegisterForm } from '~/utils/authValidation'
 
 const validRegister = (): RegisterForm => ({
@@ -83,5 +83,22 @@ describe('validatePasswordChange', () => {
     expect(validatePasswordChange({ currentPassword: 'Clave2026x', newPassword: 'Clave2026x', confirmPassword: 'Clave2026x' }).newPassword).toBe('Tiene que ser distinta de la actual.')
     expect(validatePasswordChange({ currentPassword: 'a', newPassword: 'Nueva2026x', confirmPassword: 'Nueva2026' }).confirmPassword).toBe('Las contraseñas no coinciden.')
     expect(validatePasswordChange({ currentPassword: 'a', newPassword: 'Nueva2026x', confirmPassword: 'Nueva2026x' })).toEqual({})
+  })
+})
+
+describe('validateCompleteProfile (cuentas de Google)', () => {
+  const ok = {
+    firstName: 'Laura', lastName1: 'Méndez', lastName2: '', birthDate: '1995-04-10', idType: 'cedula' as const, idNumber: '1-2345-6789',
+    phone: '8888-1234', province: 'Heredia', canton: 'Belén', addressLine: '', username: 'laura.mendez', acceptTerms: true,
+  }
+  it('acepta un perfil completo sin pedir correo ni contraseña', () => {
+    expect(validateCompleteProfile(ok)).toEqual({})
+  })
+  it('pide ser mayor de edad, identificación válida y aceptar los términos', () => {
+    const y = new Date().getFullYear() - 10
+    const e = validateCompleteProfile({ ...ok, birthDate: `${y}-01-01`, idNumber: '123', acceptTerms: false })
+    expect(e.birthDate).toContain('mayor de 18')
+    expect(e.idNumber).toContain('Formato incorrecto')
+    expect(e.acceptTerms).toBeTruthy()
   })
 })

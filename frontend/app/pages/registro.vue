@@ -87,6 +87,11 @@ async function submit() {
 <template>
   <AuthShell title="Crear cuenta" subtitle="Completá tus datos una sola vez y comprá más rápido en cada evento." wide>
     <form class="form card" novalidate @submit.prevent="submit">
+      <div class="quick">
+        <GoogleButton label="Crear cuenta con Google" :redirect="safeRedirect(route.query.redirect)" />
+        <p class="quick__note">Usamos tu nombre y tu correo de Google. Antes de tu primera compra te pedimos los datos que faltan.</p>
+        <div class="divider"><span>o con tu correo</span></div>
+      </div>
       <!-- Datos personales -->
       <fieldset class="group">
         <legend>Datos personales</legend>
@@ -240,6 +245,10 @@ async function submit() {
 
 <style scoped>
 .form { padding: 24px; display: flex; flex-direction: column; gap: 22px; }
+.quick { display: flex; flex-direction: column; gap: 10px; }
+.quick__note { margin: 0; font-size: 0.8125rem; color: var(--text-secondary); text-align: center; }
+.divider { display: flex; align-items: center; gap: 12px; color: var(--text-secondary); font-size: 0.875rem; margin-top: 6px; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .group { border: 0; margin: 0; padding: 0; min-width: 0; }
 .group legend { padding: 0; margin-bottom: 12px; font-family: var(--font-display); font-weight: 600; font-size: 1.125rem; letter-spacing: -0.01em; }
 .group + .group { padding-top: 20px; border-top: 1px solid var(--border); }

@@ -72,7 +72,9 @@ frontend/
 | Inicio (novedades personales si es Cliente) | `/` | ✓ | ✓ | → Resumen | ✓ |
 | Buscar | `/buscar` | ✓ | ✓ | ✓ | ✓ |
 | Detalle del evento | `/eventos/:id` | ✓ (para comprar pide ingresar) | ✓ compra | ✓ (no compra) | ✓ |
-| Ingresar / Crear cuenta | `/login`, `/registro` | ✓ | — | — | — |
+| Ingresar / Crear cuenta (también con Google) | `/login`, `/registro` | ✓ | — | — | — |
+| Vuelta del ingreso con Google | `/auth/google/callback` | ✓ | ✓ | ✓ | ✓ |
+| Completar perfil (cuentas de Google) | `/completar-perfil` | → Ingresar | ✓ | ✓ | ✓ |
 | Olvidé / restablecer contraseña, verificar correo | `/olvide-contrasena`, `/restablecer-contrasena`, `/verificar-correo` | ✓ | ✓ | ✓ | ✓ |
 | Mis entradas | `/mis-entradas` | → Ingresar | ✓ | → Resumen | ✓ |
 | Perfil | `/perfil` | → Ingresar | ✓ | ✓ | ✓ |
@@ -83,10 +85,12 @@ frontend/
 
 - La Organización y el Super Admin trabajan con la barra de íconos del panel.
 - La sesión se recupera al recargar (cookie `eh_session`); si la API responde 401, la sesión se cierra.
+- Las cuentas creadas con Google pueden navegar, pero no comprar hasta completar el perfil: se muestra un aviso en todas las páginas y el detalle del evento pide **Completar mi perfil**.
 
 ### Revisión rápida por rol
 
 - **Sin cuenta:** buscar, filtrar y ordenar; abrir un evento; al comprar, ir a Ingresar y volver al evento.
+- **Cliente con Google:** entrar con Google, ver que pide completar el perfil antes de comprar, completarlo y comprar.
 - **Cliente:** comprar por tipo de entrada; ver el QR en Mis entradas; pedir que se reenvíe; cancelar según la política; calificar un evento al que asistió; editar el perfil y cambiar la contraseña.
 - **Organización:** crear un evento en 5 pasos (borrador → publicar); editar; ver reservaciones; validar entradas con la cámara o con el código; descargar reportes CSV/PDF.
 - **Super Admin:** ver estadísticas; crear cuentas de Organización o Lugar con permisos; administrar categorías; ocultar reseñas.
@@ -109,9 +113,9 @@ Las contraseñas no se escriben en este documento.
 npm test
 ```
 
-- **66 pruebas** con Vitest y `@nuxt/test-utils` (entorno Nuxt + happy-dom).
+- **74 pruebas** con Vitest y `@nuxt/test-utils` (entorno Nuxt + happy-dom).
 - No necesitan backend: las llamadas se responden con `registerEndpoint` sobre una URL de prueba (`/api-test`).
-- Cubren: validaciones de formularios, el formulario de eventos (borradores, tipos de entrada, lista para publicar), fechas y dinero en formato de Costa Rica, sesión y mensajes de error, accesibilidad de componentes, accesos por tipo de cuenta, ingresar y comprar entradas.
+- Cubren: validaciones de formularios, el formulario de eventos (borradores, tipos de entrada, lista para publicar), fechas y dinero en formato de Costa Rica, sesión y mensajes de error, accesibilidad de componentes, accesos por tipo de cuenta, ingresar, comprar entradas, ingresar con Google y completar el perfil.
 
 ## 8. Accesibilidad y diseño adaptable
 
