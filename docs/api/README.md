@@ -12,12 +12,52 @@ Este documento describe **exactamente** lo que el frontend (Nuxt) ya llama y esp
 
 ## Índice
 
+0. [Para empezar (guía del backend)](#0-para-empezar-guía-del-backend)
 1. [Convenciones generales](#1-convenciones-generales)
 2. [Endpoints que el frontend YA usa](#2-endpoints-que-el-frontend-ya-usa)
 3. [Endpoints que el frontend VA a necesitar (propuesta)](#3-endpoints-que-el-frontend-va-a-necesitar-propuesta)
 4. [Códigos de error](#4-códigos-de-error)
 5. [Cómo prueba el frontend sin el backend](#5-cómo-prueba-el-frontend-sin-el-backend)
 6. [Checklist para el backend](#6-checklist-para-el-backend)
+
+---
+
+## 0. Para empezar (guía del backend)
+
+El frontend ya está **completo** y probado contra una API de prueba local que responde exactamente como dice este documento. Para conectarlo al backend real solo hay que cambiar `NUXT_PUBLIC_API_BASE` en `frontend/.env`. Este documento y la [guía de base de datos](../base-de-datos/README.md) son el contrato: **si algo tiene que cambiar, avisen a la Persona 1 antes de programarlo.**
+
+### 0.1 Qué hace cada persona y en qué orden
+
+El orden sigue lo que el frontend necesita para que cada pantalla funcione de punta a punta.
+
+| Orden | Persona 2 · Auth, seguridad y administración | Persona 3 · Eventos, reservas y Mongo | Persona 4 · AWS |
+|:-:|---|---|---|
+| 1 | Base de Express: `/api/v1`, CORS con `credentials`, formato de error (1.2), middleware de token y de **permisos** (1.3). | Modelos de la guía de base de datos y el *seed* (sección 6 de esa guía). | Bucket S3 para imágenes y `POST /files/upload-intent` (URL prefirmada, sección 2.11). |
+| 2 | Login, registro y **sesión con refresh token** (2.8, 2.9, **2.23**) y `GET /auth/me`. | Catálogo: `GET /categories`, `GET /events`, `GET /locations`, `GET /events/:id` (2.1–2.4). | Servicio de correo (SES u otro) y las plantillas de la tabla 0.2. |
+| 3 | Recuperar contraseña, verificar correo e invitaciones (2.17). Perfil (2.14). | Comprar sin sobreventa (2.5), Mis entradas (2.6) y reservaciones de los dos lados (2.12). | Tarea programada cada 5 min: cancelar reservaciones sin pago a las 3 h (2.5) y marcar eventos terminados. |
+| 4 | Google (2.10): ingreso, enlace de cuentas y `POST /me/complete-profile`. | Gestión de eventos (2.11), validar en la puerta (2.13), inicio del cliente (2.15). | Reportes: API Gateway → Lambda → S3 y URL firmada (2.19). |
+| 5 | Super Admin: cuentas y permisos (2.16), estadísticas (2.20), categorías (2.21), moderación (2.22). | Panel del organizador (2.7), reseñas (2.18) y el **filtro por organización** del Super Admin (2.24). | Webhook de la pasarela de pago (3.2), con Persona 3. |
+
+### 0.2 Correos que se envían
+
+Todos en español, con el enlace o los datos listos. El frontend no envía correos: los dispara el backend.
+
+| Correo | Cuándo | Contenido | Sección |
+|---|---|---|---|
+| Confirmá tu correo | Al registrarse y en "Reenviar" | Enlace `FRONTEND_URL/verificar-correo?token=…` (24 h) | 2.9, 2.17 |
+| Restablecé tu contraseña | "Olvidé mi contraseña" y "Crear una contraseña" (cuentas de Google) | Enlace `FRONTEND_URL/restablecer-contrasena?token=…` (30 min) | 2.10, 2.17 |
+| Invitación a EventHub | El Super Admin crea una cuenta | Enlace `FRONTEND_URL/restablecer-contrasena?token=…&invitacion=1` (48 h) | 2.16 |
+| Tus entradas | Pago confirmado o evento gratis, y "Reenviar entradas" | Evento, fecha, lugar y los códigos QR | 2.5, 2.12 |
+| Reservación cancelada | La cancela el cliente, el organizador o el sistema (3 h sin pago) | Qué se canceló y por qué | 2.12 |
+| Cambió tu evento / Evento cancelado | Cambia la fecha o el lugar de un evento publicado, o se cancela | Qué cambió | 2.11, 2.15 |
+| Tu contraseña cambió | Cambio desde el perfil o restablecida | Aviso de seguridad (sin enlaces para iniciar sesión) | 2.14 |
+
+### 0.3 Cómo probar contra el frontend
+
+1. En `frontend/.env`: `NUXT_PUBLIC_API_BASE=http://localhost:4000/api/v1` y `npm run dev`.
+2. Recorrer la revisión por rol del [README del frontend](../../frontend/README.md#5-páginas-y-acceso-por-tipo-de-cuenta) con una cuenta de cada tipo.
+3. Si una pantalla muestra un error, la respuesta del backend no coincide con este documento: revisar en la pestaña *Network* del navegador qué devolvió.
+4. Lo que el equipo todavía tiene que decidir está en la [guía de base de datos, sección 7](../base-de-datos/README.md#7-decisiones-pendientes).
 
 ---
 
@@ -32,7 +72,7 @@ Este documento describe **exactamente** lo que el frontend (Nuxt) ya llama y esp
 | **Dinero** | Número entero en **colones** (`8000` = ₡8 000). `0` significa **gratis**. |
 | **Nombres de campos** | `camelCase` en inglés (`availableSpots`, `createdAt`). |
 | **Referencias** | Donde se indica, la API devuelve la referencia **populada** (objeto) y no solo el id. |
-| **Autenticación** | `Authorization: Bearer <accessToken>` en endpoints privados (ver sección 3.1). Mientras no exista login, el frontend no envía token. |
+| **Autenticación** | `Authorization: Bearer <accessToken>` en endpoints privados. La sesión y su renovación están en la sección 2.23. |
 | **CORS** | Permitir el origen del frontend (`http://localhost:3000` en desarrollo y la URL pública en producción). Si el refresh token va en cookie, habilitar `credentials`. |
 | **Ordenamiento de rutas en Express** | Declarar rutas fijas antes que las de parámetro, por ejemplo `/events/locations` antes de `/events/:id` si algún día se mueve ahí. |
 
@@ -81,7 +121,7 @@ El frontend muestra un menú distinto según el tipo de cuenta y protege las pá
 
 > Además del rol, cada cuenta puede tener **permisos ajustados** por el Super Admin (sección 2.16). `User.permissions` siempre trae los permisos **efectivos**; el backend debe revisar el permiso concreto en cada endpoint (`authorize('events:create')`), no solo el rol.
 
-- **Sesión en el navegador:** el frontend guarda el `accessToken` en una cookie `eh_session` (`SameSite=Lax`, `Secure` en producción) para no perder la sesión al recargar, y al abrir la página llama `GET /auth/me` para recuperar el usuario. Cuando exista el refresh token, la idea es pasar a cookie **httpOnly** del backend (tarea F08).
+- **Sesión en el navegador:** definida en la **sección 2.23** (token de acceso en memoria + refresh token en cookie `HttpOnly` del backend). Mientras el backend no la tenga, el frontend guarda el `accessToken` en una cookie `eh_session` y al abrir la página llama `GET /auth/me`.
 - Al cerrar sesión: `POST /auth/logout` invalida el token en el servidor.
 - **Vista previa de un borrador** (`GET /events/:id?preview=1`): solo su organización o el Super Admin. Sin sesión → `401`; con otra cuenta → `404` (para no revelar que existe).
 
@@ -308,7 +348,7 @@ Comprar o reservar entradas. **Requiere sesión de Asistente.**
 
 - Se crea **una entrada (Ticket) por cada espacio** reservado, cuando el pago queda confirmado. Si el pago todavía está pendiente, `tickets` viene vacío.
 - Después de confirmar, disparar el **correo de confirmación** (Persona 4, SES). Si el correo falla, la reserva **no** se debe revertir.
-- Mientras no exista el login, el frontend llama sin token; cuando exista, sin token debe responder `401 UNAUTHORIZED`.
+- Sin token responde `401 UNAUTHORIZED`: el frontend manda a ingresar y después vuelve al evento.
 
 ---
 
@@ -355,7 +395,7 @@ Todas las entradas del usuario con sesión (activas e historial).
 
 ### 2.7 `GET /organizer/stats`
 
-Datos del dashboard del organizador. **Requiere sesión de Organizador** (o Admin). Se calcula **solo con los eventos del organizador que hace la petición** (sacarlo del token, no de un parámetro).
+Datos del dashboard del organizador. **Requiere sesión de Organizador** (o Admin). Se calcula **solo con los eventos del organizador que hace la petición** (sacarlo del token, no de un parámetro). Única excepción: el Super Admin puede mandar `organizer=<id>` para ver una organización (sección 2.24).
 
 **Query params**
 
@@ -1043,6 +1083,67 @@ Errores: `400 VALIDATION_ERROR` · `404 REVIEW_NOT_FOUND`.
 
 ---
 
+### 2.23 Sesión: token de acceso y renovación (refresh token)
+
+Así se mantiene la sesión sin guardar tokens donde JavaScript los pueda leer (tarea F08).
+
+| Token | Dónde vive | Dura | Para qué |
+|---|---|---|---|
+| **Token de acceso** (JWT) | Solo en la **memoria** del frontend. Va en `Authorization: Bearer …`. | **15 minutos** | Llamar a la API. Contiene `{ sub: userId, role, sid: sessionId }`. |
+| **Refresh token** (aleatorio, 32 bytes o más) | Cookie del backend **`eh_refresh`**: `HttpOnly`, `Secure` (en producción), `SameSite=Lax`, `Path=/api/v1/auth`. | **7 días** desde el último uso (máximo 30 días desde que se ingresó) | Pedir un token de acceso nuevo. En la base se guarda **solo su hash** (colección `sessions`). |
+
+**Endpoints**
+
+| Método | Ruta | Qué hace | Respuesta |
+|---|---|---|---|
+| `POST` | `/auth/login`, `/auth/google/exchange` | Además de lo de las secciones 2.8 y 2.10, crean la sesión y ponen la cookie `eh_refresh`. | Igual que hoy: `{ accessToken, expiresAt, user }` |
+| `POST` | `/auth/refresh` | Sin body. Lee la cookie, revisa que la sesión exista, no esté revocada ni vencida y que la cuenta siga activa. **Rota** el refresh token: guarda uno nuevo, marca el anterior como reemplazado y pone la cookie nueva. | `200` `{ accessToken, expiresAt, user }` · `401 SESSION_EXPIRED` (y borra la cookie) |
+| `POST` | `/auth/logout` | Revoca la sesión (`revokedAt`) y borra la cookie. Funciona aunque el token de acceso ya haya vencido. | `204` |
+
+**Qué hace el frontend**
+
+- Al abrir el sitio llama `POST /auth/refresh`: si responde 200, la sesión sigue; si responde 401, entra sin sesión. (Hoy usa la cookie `eh_session` y `GET /auth/me`; se cambia cuando el backend tenga esto.)
+- Unos segundos antes de `expiresAt`, renueva solo.
+- Si una llamada responde **`401 TOKEN_EXPIRED`**, llama una vez a `/auth/refresh` y repite la llamada. Si llegan varias a la vez, hace **una sola** renovación y las demás esperan.
+- Si la renovación falla, borra la sesión y manda a `/login?expirada=1&redirect=<página actual>` con el aviso "Tu sesión venció. Ingresá de nuevo.".
+- Todas las llamadas van con `credentials: 'include'` para que viaje la cookie.
+
+**Reglas del backend**
+
+- Distinguir los 401: `TOKEN_EXPIRED` (el JWT venció: el frontend renueva) y `UNAUTHORIZED` (falta el token o es inválido: no renueva).
+- **Reuso de un refresh token ya rotado** = posible robo → revocar **todas** las sesiones de esa cuenta y responder `401 SESSION_EXPIRED`.
+- Se revocan sesiones al: cerrar sesión (esa), cambiar o restablecer la contraseña (todas menos la actual, o todas si fue por enlace), desactivar la cuenta o cambiarle el tipo (todas, sección 2.16).
+- Revisar en cada petición que la sesión `sid` del JWT no esté revocada, o aceptar que el cambio tarde como mucho 15 minutos (lo que dura el token de acceso). Recomendado: revisarlo, es una consulta por índice.
+- CORS: `Access-Control-Allow-Credentials: true` y el origen **exacto** del frontend (no `*`).
+- **Dominios:** en desarrollo, `localhost:3000` y `localhost:4000` son el mismo sitio y `SameSite=Lax` funciona. En producción, si el frontend y la API quedan en dominios distintos (por ejemplo Amplify y API Gateway), usar `SameSite=None; Secure` o, mejor, servir la API bajo el mismo dominio (`app.eventhub…/api`). Persona 4 decide la URL final.
+- Límite: 30 renovaciones por minuto por IP → `429 TOO_MANY_REQUESTS`.
+
+---
+
+### 2.24 Filtro por organización (Super Admin)
+
+El Super Admin usa el mismo panel que las organizaciones, pero ve los eventos de **todas**. Para revisar una en particular, el panel tiene un selector **Organización**.
+
+| Método | Ruta | Qué hace | Respuesta |
+|---|---|---|---|
+| `GET` | `/admin/organizers` | Lista para el selector: todas las cuentas `organizer` (organizaciones y lugares), en orden alfabético. **Solo `admin`.** | `200` `[{ _id, name, kind: 'organization' \| 'venue', events, status }]` (`events` = cuántos eventos tiene) |
+
+Parámetro nuevo **`organizer=<userId>`** en:
+
+- `GET /organizer/stats` (2.7)
+- `GET /organizer/events` (2.11)
+- `GET /organizer/reservations` (2.12)
+- `GET /organizer/checkin/events` (2.13)
+- `POST /reports` con `type: 'organizer-summary'` (2.19), en el body
+
+**Reglas**
+
+- Solo lo usa el Super Admin. Si lo manda una organización, **se ignora** y se usan sus propios eventos (siempre sacados del token).
+- Sin el parámetro, el Super Admin sigue viendo **todo**, como hasta ahora.
+- Si el id no es una cuenta `organizer` → `404 USER_NOT_FOUND`.
+
+---
+
 ## 3. Endpoints que el frontend VA a necesitar (propuesta)
 
 Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del documento de división de tareas (sección 11). **Son propuestas:** si el backend prefiere otra forma, avisen antes de programarla.
@@ -1052,15 +1153,14 @@ Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del
 | Método | Ruta | Body / Notas | Respuesta |
 |---|---|---|---|
 | ~~`POST`~~ | ~~`/auth/register`~~, ~~`/auth/login`~~ | **Ya definidos** en las secciones 2.8 y 2.9. | |
-| `POST` | `/auth/refresh` | Usa el refresh token. | `200` `{ accessToken }` |
-| `POST` | `/auth/logout` | Invalida el refresh token. | `204` |
+| ~~`POST`~~ | ~~`/auth/refresh`~~, ~~`/auth/logout`~~ | **Ya definidos** en la sección 2.23. | |
 | ~~`GET`~~ | ~~`/auth/google`~~, ~~`/auth/google/callback`~~ | **Ya definidos** en la sección 2.10 (con `POST /auth/google/exchange` y `POST /me/complete-profile`). | |
 | ~~`POST`~~ | ~~`/auth/verify-email`~~, ~~`/auth/resend-verification`~~, ~~`/auth/forgot-password`~~, ~~`/auth/reset-password`~~ | **Ya definidos** en la sección 2.17 (también la invitación y `GET /auth/reset-password/check`). | |
 | ~~`GET`~~ / ~~`PATCH`~~ | ~~`/me`~~ | **Ya definidos** en la sección 2.14 (`GET /auth/me`, `PATCH /me`, `POST /me/password`). | |
 
 Por decidir entre los dos:
 
-- **Dónde va el refresh token.** Recomendado: cookie `httpOnly`, `Secure`, `SameSite=Lax`. El `accessToken` lo guarda el frontend solo en memoria.
+- ~~Dónde va el refresh token~~ **Decidido** en la sección 2.23.
 - **Rutas del frontend a las que apuntan los enlaces de los correos:** ver la tabla de la sección 2.17.
 - **Tipos de usuario:** solo se registran **Clientes** (`attendee`). El **Administrador** (dueño del sistema, todos los permisos) se crea con el seed. El **Organizador** existe pero solo lo asigna el Admin (ver la guía de base de datos, sección 3.8).
 
@@ -1098,7 +1198,9 @@ Por decidir entre los dos:
 | 400 | `VALIDATION_ERROR` | Body o query inválidos (con `details` por campo). |
 | 400 | `INVALID_ID` | `:id` no es ObjectId. |
 | 400 | `INVALID_QUANTITY` | Cantidad fuera de 1–10. |
-| 401 | `UNAUTHORIZED` | Falta el token o venció. El frontend intentará `/auth/refresh` y, si falla, mandará al login. |
+| 401 | `UNAUTHORIZED` | Falta el token o es inválido. El frontend borra la sesión y manda al login. |
+| 401 | `TOKEN_EXPIRED` | El token de acceso venció. El frontend llama `/auth/refresh` y repite la llamada (sección 2.23). |
+| 401 | `SESSION_EXPIRED` | El refresh token venció, fue revocado o se reusó. El frontend manda al login con el aviso de sesión vencida. |
 | 403 | `FORBIDDEN` | Con sesión pero sin permiso (rol o no es el dueño). |
 | 403 | `PROFILE_INCOMPLETE` | Comprar sin identificación, teléfono, nacimiento o dirección (cuentas de Google, sección 2.10). |
 | 400 | `GOOGLE_CODE_INVALID` | El código de vuelta de Google venció o ya se usó (sección 2.10). |
@@ -1153,6 +1255,9 @@ Si quieren ver cómo se comporta un endpoint (por ejemplo la búsqueda con `didY
 - [ ] Validación en la puerta (sección 2.13): firma del QR, operación atómica, deshacer en 2 minutos y `validatedBy`/`gate`.
 - [ ] Inicio del cliente (sección 2.15): `GET /me/feed`, `GET /events?sort=popular` y registrar `eventUpdates` al cambiar o cancelar un evento publicado.
 - [ ] Cuentas y permisos (sección 2.16): crear cuentas con invitación por correo, permisos ajustados por cuenta y revisar **permisos** (no solo el rol) en cada endpoint.
+- [ ] Sesión con refresh token (sección 2.23): cookie `HttpOnly`, rotación, detección de reuso, `TOKEN_EXPIRED` vs `UNAUTHORIZED` y CORS con `credentials`.
+- [ ] Filtro por organización del Super Admin (sección 2.24) y `GET /admin/organizers`.
+- [ ] Los correos de la tabla 0.2.
 - [ ] Google (sección 2.10): validar el ID token, `state` contra CSRF, enlazar por correo verificado, código de un solo uso de 60 s, `POST /me/complete-profile` y `403 PROFILE_INCOMPLETE` al comprar.
 - [ ] Recuperar contraseña, verificar correo e invitaciones (sección 2.17): tokens de un solo uso guardados como hash, vencimientos y cierre de sesiones al cambiar la contraseña.
 - [ ] Reseñas (sección 2.18): solo quien asistió, una por evento, y recalcular `ratingAvg` / `ratingCount`.

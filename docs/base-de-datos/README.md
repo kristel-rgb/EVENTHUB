@@ -280,7 +280,7 @@ No las muestra el frontend, pero son necesarias para RF-01, RF-02 y la sección 
 
 | Colección | Campos | Notas |
 |---|---|---|
-| `sessions` (o `refreshtokens`) | `user`, `tokenHash`, `ip`, `userAgent`, `expiresAt`, `revokedAt`, `createdAt` | Guardar el **hash** del token, nunca el token. Índice TTL en `expiresAt`. El logout llena `revokedAt`; cambiar la contraseña lo llena en **todas las demás** sesiones del usuario. |
+| `sessions` (o `refreshtokens`) | `user`, `tokenHash`, `previousTokenHashes` (los ya rotados, para detectar reuso), `ip`, `userAgent`, `createdAt`, `lastUsedAt`, `expiresAt` (7 días desde el último uso, máximo 30 desde `createdAt`), `revokedAt`, `revokedReason` (`logout` \| `password_changed` \| `account_disabled` \| `role_changed` \| `token_reused`) | Una sesión por dispositivo donde se ingresó. Guardar el **hash** del refresh token, nunca el token. Cada `/auth/refresh` **rota** el token: el hash actual pasa a `previousTokenHashes` y se guarda el nuevo. Si llega uno de `previousTokenHashes`, se revocan todas las sesiones de esa cuenta (API, sección 2.23). Índices `{ tokenHash: 1 }` único, `{ previousTokenHashes: 1 }`, `{ user: 1, revokedAt: 1 }` y TTL en `expiresAt`. |
 | `accessLogs` | `user` (o `null` si no existe), `identifier` (usuario o correo que se intentó), `success`, `reason` (`ok` \| `invalid_credentials` \| `disabled` \| `rate_limited`), `ip`, `userAgent`, `createdAt` | Registro de **todos** los intentos de ingreso. Sirve para auditoría y para el límite de intentos: **5 fallidos en 15 minutos** por identificador → `429`. Índice `{ identifier: 1, createdAt: -1 }` y TTL opcional (por ejemplo 90 días). |
 | `logincodes` | `user`, `codeHash`, `isNew`, `expiresAt`, `usedAt` | Código de un solo uso de la vuelta de Google (API, sección 2.10): vence a los **60 segundos**. Índice TTL en `expiresAt`. Puede ir en la misma colección que `emailtokens` con `type: 'google_login'`. |
 | `emailtokens` | `user`, `type` (`verify` \| `reset` \| `invite`), `tokenHash`, `expiresAt`, `usedAt`, `createdAt` | Un solo uso y con expiración: `reset` 30 min, `verify` 24 h, `invite` 48 h (API sección 2.17). Guardar solo el **hash** (SHA-256) del token. Al crear uno nuevo, marcar como usados los anteriores del mismo `user` y `type`. Índices `{ tokenHash: 1 }` único y TTL en `expiresAt`. |
@@ -488,3 +488,5 @@ Ejemplo de documento `events` tal como lo guardaría Mongo:
 | 7 | Búsqueda: índice de texto o Atlas Search (para "¿Quisiste decir…?"). | `events` |
 | 8 | Formato del `qrValue` (JWT u HMAC) y su secreto. | `tickets` |
 | 9 | ~~¿El rol `organizer` se elige al registrarse?~~ **Decidido:** solo el Admin lo asigna. | `users`, `roles` |
+| 10 | URL final del frontend y de la API en producción (¿mismo dominio?). Define cómo va la cookie de sesión (API, sección 2.23). | Persona 4, Persona 2 |
+| 11 | Pasarela de pago: cuál se usa, cómo firma el webhook y si permite reembolsos. | `reservations`, Personas 3 y 4 |
