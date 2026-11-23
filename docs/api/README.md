@@ -1,7 +1,7 @@
 # EventHub · Contrato de la API (lo que necesita el frontend)
 
 > **Para:** Persona 2 (Backend A: auth, seguridad, administración), Persona 3 (Backend B: eventos, reservas, MongoDB) y Persona 4 (AWS).
-> **Mantiene:** Persona 1 (Frontend). Última actualización: 20 de noviembre de 2026.
+> **Mantiene:** Persona 1 (Frontend). Última actualización: 23 de noviembre de 2026.
 
 Este documento describe **exactamente** lo que el frontend (Nuxt) ya llama y espera recibir. Si el backend responde con esta forma, el frontend funciona sin cambios. Si necesitan cambiar algo (un nombre de campo, una ruta, un código de error), **avisen antes** para actualizar el frontend y este documento.
 
@@ -74,10 +74,10 @@ El frontend muestra un menú distinto según el tipo de cuenta y protege las pá
 
 | Tipo de cuenta (`role`) | Ve en el sitio | Endpoints |
 |---|---|---|
-| Sin cuenta | Inicio, Buscar, detalle de eventos, páginas legales, Ingresar, Crear cuenta. **Puede ver y buscar, pero no comprar.** | Solo públicos: `GET /categories`, `GET /events`, `GET /events/:id`, `GET /locations`, `POST /auth/*`. |
-| Cliente (`attendee`) | Lo anterior + **Mis entradas** (con historial) y **Perfil**, y **Cerrar sesión**. | + `POST /events/:id/reservations`, `/me/*` (sección 2.14), `GET /me/tickets`, `/me/reservations/*`. |
-| Organización (`organizer`) | **Solo su panel** (Resumen, Mis eventos, Reservaciones, Validar entradas) y **Buscar**, dentro de la misma barra de íconos, más su Perfil. **No** tiene Inicio ni Mis entradas y **no compra** entradas. Solo ve y cambia **sus** eventos. | `/organizer/*`, `POST/PATCH/DELETE /events…`, `/tickets/validate`, `/files/upload-intent`, `/me` (perfil). Si el evento o la reservación no es suyo → `404`. `POST /events/:id/reservations` → `403 FORBIDDEN`. |
-| Super Admin (`admin`) | **Todo**, siempre con la barra de íconos del panel: Organizar eventos (sobre **todos** los eventos) y, debajo, **Cuentas y permisos**, Inicio, Buscar y Mis entradas. | Todos. En `/organizer/*` ve los eventos de todas las organizaciones. Además `/admin/*` (sección 2.16). |
+| Sin cuenta | Inicio, Buscar, detalle de eventos (con sus reseñas), páginas legales, Ingresar, Crear cuenta, Olvidé mi contraseña. **Puede ver y buscar, pero no comprar.** | Solo públicos: `GET /categories`, `GET /events`, `GET /events/:id`, `GET /events/:id/reviews`, `GET /locations`, `/auth/*` (secciones 2.8, 2.9 y 2.17). |
+| Cliente (`attendee`) | Lo anterior + **Mis entradas** (con historial) y **Perfil**, y **Cerrar sesión**. | + `POST /events/:id/reservations`, `/me/*` (sección 2.14), `GET /me/tickets`, `/me/reservations/*`, reseñas propias (sección 2.18). |
+| Organización (`organizer`) | **Solo su panel** (Resumen, Mis eventos, Reservaciones, Validar entradas) y **Buscar**, dentro de la misma barra de íconos, más su Perfil. **No** tiene Inicio ni Mis entradas y **no compra** entradas. Solo ve y cambia **sus** eventos. | `/organizer/*`, `POST/PATCH/DELETE /events…`, `/tickets/validate`, `/files/upload-intent`, `/reports` (sección 2.19), `/me` (perfil). Si el evento o la reservación no es suyo → `404`. `POST /events/:id/reservations` → `403 FORBIDDEN`. |
+| Super Admin (`admin`) | **Todo**, siempre con la barra de íconos del panel: Organizar eventos (sobre **todos** los eventos) y, debajo, **Cuentas y permisos**, Inicio, Buscar y Mis entradas. | Todos. En `/organizer/*` ve los eventos de todas las organizaciones. Además `/admin/*` (secciones 2.16, 2.20, 2.21 y 2.22). |
 
 > Además del rol, cada cuenta puede tener **permisos ajustados** por el Super Admin (sección 2.16). `User.permissions` siempre trae los permisos **efectivos**; el backend debe revisar el permiso concreto en cada endpoint (`authorize('events:create')`), no solo el rol.
 
@@ -138,7 +138,7 @@ Catálogo público con búsqueda, filtros y paginación.
 | `to` | ISO date | Solo eventos con `date <= to`. |
 | `price` | `free` \| `paid` | `free` = `price === 0`; `paid` = `price > 0`. |
 | `location` | string | Lugar **exacto**, tal como lo devuelve `GET /locations`. |
-| `sort` | `date` \| `popular` | `date` (por defecto): el más próximo primero. `popular`: **los más esperados**, ordenados por % vendido (`(capacity - availableSpots) / capacity`) de mayor a menor; se usa en el inicio del cliente. |
+| `sort` | `date` \| `popular` \| `price_asc` \| `price_desc` | `date` (por defecto): el más próximo primero. `popular`: **los más esperados**, ordenados por % vendido (`(capacity - availableSpots) / capacity`) de mayor a menor; se usa en el inicio del cliente. `price_asc` / `price_desc`: por precio **"desde"** (`price`, el tipo de entrada más barato), de menor a mayor o al revés; si empatan, el más próximo primero. Lo usa el selector "Ordenar" de Buscar. |
 | `page` | number | Página, desde 1. Por defecto 1. |
 | `limit` | number | Tamaño de página. Por defecto 12, **máximo 50**. |
 
@@ -801,6 +801,210 @@ Errores: `404 USER_NOT_FOUND` · `409 CANNOT_CHANGE_SELF` · `400 VALIDATION_ERR
 
 ---
 
+### 2.17 Recuperar contraseña, verificar correo e invitaciones
+
+Pantallas: `/olvide-contrasena`, `/restablecer-contrasena?token=…` (también `&invitacion=1`), `/verificar-correo?token=…` y el aviso de "Confirmá tu correo" en `/perfil`.
+
+Los tres casos usan **enlaces de un solo uso** que llegan por correo. El backend guarda solo el **hash** del token (colección `emailtokens`, ver la guía de base de datos, sección 3.7) y lo marca como usado al gastarlo. Al pedir uno nuevo del mismo tipo, los anteriores dejan de servir.
+
+| Tipo (`kind`) | Para qué | Vence | Enlace que va en el correo |
+|---|---|---|---|
+| `reset` | Olvidé mi contraseña | 30 min | `FRONTEND_URL/restablecer-contrasena?token=…` |
+| `verify` | Confirmar el correo al crear la cuenta | 24 h | `FRONTEND_URL/verificar-correo?token=…` |
+| `invite` | Cuenta creada por el Super Admin: elegir la primera contraseña (sección 2.16) | 48 h | `FRONTEND_URL/restablecer-contrasena?token=…&invitacion=1` |
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| `POST` | `/auth/forgot-password` | `{ email }` | **Siempre `204`**, exista o no la cuenta (no revelar qué correos están registrados). Si la cuenta existe, está activa y todavía no eligió contraseña, se manda una **invitación** en vez de un `reset`. |
+| `GET` | `/auth/reset-password/check?token=` | — | `200` `{ kind: 'reset' \| 'invite', name, username, expiresAt }`. Revisa el enlace **sin gastarlo**, antes de mostrar el formulario (así se avisa de una vez si venció). |
+| `POST` | `/auth/reset-password` | `{ token, password }` | `200` `{ username, kind }`. Gasta el token, guarda la contraseña nueva (hash) y **cierra todas las sesiones** de la cuenta. Si `kind` es `invite`, además marca `emailVerified: true`. |
+| `POST` | `/auth/verify-email` | `{ token }` | `200` `{ email }`. Marca `emailVerified: true` y gasta el token. |
+| `POST` | `/auth/resend-verification` | `{ email }`, **o** sin body con sesión (`Authorization`) | **Siempre `204`**. Solo envía si la cuenta existe, está activa y no está verificada. |
+
+**Reglas**
+
+- `POST /auth/register` (sección 2.9) envía el correo de verificación al crear la cuenta. Se puede ingresar sin verificar; el perfil muestra el aviso con el botón "Reenviar".
+- Contraseña nueva: mínimo 8 caracteres con mayúscula, minúscula y número (las mismas reglas del registro) → si no, `400 VALIDATION_ERROR` con `details.password`.
+- Límite de intentos en `forgot-password` y `resend-verification` (por ejemplo 3 por hora por correo y por IP) → `429 TOO_MANY_REQUESTS`.
+
+Errores del token (`400`, el `message` se muestra tal cual):
+
+| code | Cuándo |
+|---|---|
+| `TOKEN_INVALID` | No existe, está incompleto o es de otro tipo. |
+| `TOKEN_USED` | Ya se usó, o se pidió uno más nuevo. |
+| `TOKEN_EXPIRED` | Pasó el tiempo de vigencia. |
+
+---
+
+### 2.18 Comentarios y calificaciones (RF-07)
+
+Se muestran en el detalle del evento (`/eventos/:id`). "Mis entradas" tiene el enlace **Calificar este evento** para los eventos ya ocurridos.
+
+| Método | Ruta | Quién | Respuesta |
+|---|---|---|---|
+| `GET` | `/events/:id/reviews?sort=recent\|best\|worst&page=&limit=` | Público (con sesión agrega `myReview` y `canReview`) | `200` `ReviewList` (abajo). `limit` por defecto 5, máximo 20. Borrador → `404 EVENT_NOT_FOUND`. |
+| `POST` | `/events/:id/reviews` | Con sesión | `{ rating, comment }` → `201` `{ review: ReviewItem, summary }` |
+| `PATCH` | `/reviews/:id` | Solo el autor | `{ rating, comment }` → `200` `{ review, summary }` |
+| `DELETE` | `/reviews/:id` | Solo el autor | `200` `{ summary }` |
+
+```json
+{
+  "items": [
+    { "_id": "…", "rating": 5, "comment": "Excelente sonido y muy puntual.", "createdAt": "…", "updatedAt": "…",
+      "edited": false, "author": { "name": "Ana M." }, "mine": false }
+  ],
+  "page": 1, "limit": 5, "total": 11,
+  "summary": { "avg": 4.4, "count": 12, "distribution": { "1": 0, "2": 1, "3": 1, "4": 2, "5": 8 } },
+  "myReview": { "_id": "…", "rating": 4, "comment": "…", "edited": true, "author": { "name": "Luis C." }, "mine": true,
+                "hidden": false, "hiddenReason": null },
+  "canReview": false,
+  "cannotReviewReason": null
+}
+```
+
+- `items` **no** incluye la reseña propia (va aparte en `myReview`, aunque esté oculta) ni las ocultas por moderación.
+- `author.name`: **solo el nombre y la inicial del primer apellido** (privacidad).
+- `edited`: `true` si `updatedAt` es distinto de `createdAt`.
+- `summary` cuenta solo las visibles. Es lo mismo que `ratingAvg` / `ratingCount` del evento.
+- `cannotReviewReason`: texto listo para mostrar cuando `canReview` es `false` y la persona todavía no calificó ("Ingresá para calificar este evento.", "Solo pueden calificar las personas que tuvieron entrada para este evento.", "Vas a poder calificarlo cuando el evento ocurra.").
+
+**Reglas**
+
+- Solo califica quien tuvo una reservación **`confirmed`** del evento, y **después de la hora de inicio**.
+- Una reseña por persona y evento.
+- `rating`: entero de 1 a 5. `comment`: de 10 a 1000 caracteres (sin contar espacios al inicio y al final).
+- Una reseña **ocultada por moderación** no se puede editar (`409 REVIEW_HIDDEN`); el autor ve el motivo (`hiddenReason`).
+
+Errores: `400 VALIDATION_ERROR` (`details.rating`, `details.comment`) · `403 REVIEW_NOT_ALLOWED` (el `message` dice por qué) · `409 REVIEW_EXISTS` · `409 REVIEW_HIDDEN` · `404 REVIEW_NOT_FOUND` (no existe o no es tuya).
+
+---
+
+### 2.19 Reportes descargables (CSV y PDF)
+
+Botón **Descargar reporte** en el Resumen del organizador y en el menú de cada evento de "Mis eventos". Es la parte que demuestra **Express → API Gateway → Lambda → S3** (RC-02, Persona 4).
+
+| Método | Ruta | Body / Notas | Respuesta |
+|---|---|---|---|
+| `POST` | `/reports` | `{ type, format, eventId?, period? }` | **`202`** `ReportItem` con `status: 'processing'`. |
+| `GET` | `/reports/:id` | El frontend consulta cada 1,5 s hasta que deje de estar en `processing`. | `200` `ReportItem` |
+| `GET` | `/reports` | Los **últimos 10** reportes que pidió la persona. | `200` `ReportItem[]` |
+
+| Campo | Valores |
+|---|---|
+| `type` | `organizer-summary`: resumen de todos sus eventos (no borradores) · `event-reservations`: reservaciones de **un** evento (requiere `eventId`). |
+| `format` | `csv` \| `pdf` |
+| `period` | Solo `organizer-summary`: `7` \| `30` \| `90` días de ventas. Por defecto 30. |
+
+```json
+{
+  "_id": "…", "type": "event-reservations", "format": "csv", "title": "Reservaciones de Festival de rock en Pedregal",
+  "status": "ready", "createdAt": "2026-11-22T18:00:00.000Z",
+  "url": "https://…s3…/reportes/…?X-Amz-Signature=…",
+  "fileName": "reservaciones-de-festival-de-rock-en-pedregal.csv",
+  "expiresAt": "2026-11-22T18:15:03.000Z"
+}
+```
+
+- `status`: `processing` \| `ready` \| `failed`. `url`, `fileName` y `expiresAt` vienen solo con `ready`.
+- `url` es una **URL firmada de S3** que vence a los **15 minutos**. El navegador la abre directamente, sin token. Si vence, se pide el reporte de nuevo.
+- **Columnas** del CSV y del PDF:
+  - `event-reservations`: Reservación, Cliente, Correo, Tipo, Cantidad, Total, Estado, Pago, Comprada.
+  - `organizer-summary`: Evento, Fecha, Estado, Capacidad, Vendidas, Ocupación, Ventas del periodo, Ingresos totales.
+- CSV en UTF-8 **con BOM** (para que Excel muestre bien las tildes), separado por comas, fechas en hora de Costa Rica.
+- Permisos: organización → solo **sus** eventos (otro evento → `404 EVENT_NOT_FOUND`); Super Admin → todos. `GET /reports/:id` de otra persona → `404 REPORT_NOT_FOUND`.
+
+Errores: `400 VALIDATION_ERROR` · `404 EVENT_NOT_FOUND` · `404 REPORT_NOT_FOUND` · `403 LINK_EXPIRED` (al abrir una URL vencida, si la sirve el backend).
+
+---
+
+### 2.20 Estadísticas generales (Super Admin)
+
+Pantalla: `/admin` (Resumen general). **Solo `admin`**.
+
+`GET /admin/stats?period=7|30|90` (por defecto 30) → `200`:
+
+```json
+{
+  "period": 30,
+  "kpis": {
+    "users":     { "value": 159, "new": 12, "newPrevious": 9 },
+    "tickets":   { "value": 1840, "previous": 1610, "series": [120, 260, 310, 290, 420, 440] },
+    "revenue":   { "value": 23500000, "previous": 20100000, "series": [ … ] },
+    "occupancy": { "value": 64, "activeEvents": 28 },
+    "checkedIn": 410
+  },
+  "sales": { "current": [{ "start": "ISO", "tickets": 120, "revenue": 1500000 }], "previous": [ … ] },
+  "accounts": { "attendee": 152, "organization": 5, "venue": 1, "admin": 1 },
+  "events": { "published": 28, "draft": 4, "finished": 8, "cancelled": 3 },
+  "categories": [{ "_id": "…", "name": "Conciertos", "events": 9 }],
+  "topEvents": [{ "_id": "…", "name": "…", "date": "ISO", "revenue": 4200000, "tickets": 310 }],
+  "topOrganizations": [{ "_id": "…", "name": "Sonido Vivo Producciones", "kind": "organization", "events": 12, "tickets": 900, "revenue": 9800000 }],
+  "recentAccounts": [{ "_id": "…", "name": "…", "kind": "attendee", "createdAt": "ISO" }],
+  "moderation": { "flagged": 2, "hidden": 1, "total": 36 }
+}
+```
+
+- Ventas = reservaciones **`confirmed`** creadas dentro del periodo. `previous` / `newPrevious` = el periodo anterior del mismo largo (para la flecha de "subió / bajó").
+- `sales` agrupa igual que `GET /organizer/stats` (sección 2.7): por día (7), cada 5 días (30) o por semana (90).
+- `events.finished` incluye los publicados cuya fecha ya pasó.
+- `occupancy`: vendidas / capacidad de los eventos publicados **futuros**.
+- `categories`: eventos publicados futuros por categoría. `topEvents` y `topOrganizations`: los 5 con más ingresos en el periodo.
+- `checkedIn`: entradas validadas en la puerta dentro del periodo.
+
+---
+
+### 2.21 Categorías (Super Admin)
+
+Pantalla: `/admin/categorias`. **Solo `admin`**. El público sigue usando `GET /categories` (sección 2.1).
+
+| Método | Ruta | Body | Respuesta |
+|---|---|---|---|
+| `GET` | `/admin/categories` | — | `200` `[{ _id, name, slug, events, published }]`, en orden alfabético. `events` = cuántos eventos la usan; `published` = cuántos de ellos están publicados. |
+| `POST` | `/admin/categories` | `{ name }` | `201` la categoría con `events: 0, published: 0`. |
+| `PATCH` | `/admin/categories/:id` | `{ name }` | `200` la categoría actualizada. |
+| `DELETE` | `/admin/categories/:id` | — | `204` |
+
+**Reglas**
+
+- `name`: de 3 a 40 caracteres; se quitan los espacios repetidos.
+- El `slug` lo arma el backend a partir del nombre: minúsculas, sin tildes, con guiones (`Gastronomía local` → `gastronomia-local`). Al **cambiar el nombre cambia el slug**, y los enlaces viejos de Buscar dejan de filtrar.
+- No puede haber dos categorías con el mismo nombre o slug, sin importar mayúsculas ni tildes → `400 VALIDATION_ERROR` con `details.name`.
+- Solo se elimina si **ningún evento la usa** → si no, `409 CATEGORY_IN_USE` (el mensaje dice cuántos eventos la usan).
+
+Errores: `400 VALIDATION_ERROR` · `404 CATEGORY_NOT_FOUND` · `409 CATEGORY_IN_USE`.
+
+---
+
+### 2.22 Moderación de comentarios (Super Admin, RF-09)
+
+Pantalla: `/admin/moderacion`. **Solo `admin`** (permiso `reviews:moderate`).
+
+| Método | Ruta | Body / Notas | Respuesta |
+|---|---|---|---|
+| `GET` | `/admin/reviews?status=flagged\|visible\|hidden&q=&page=&limit=` | `status` por defecto `flagged`. `q` busca en el comentario, el evento y el autor (sin tildes). `limit` por defecto 20, máximo 50. | `200` `{ items: ModerationItem[], page, limit, total, counts: { flagged, visible, hidden } }` |
+| `PATCH` | `/admin/reviews/:id` | `{ hidden: true, reason }` para ocultar · `{ hidden: false }` para volver a mostrar | `200` `{ _id, hidden, hiddenReason }` |
+
+```json
+{
+  "_id": "…", "rating": 1, "comment": "…", "createdAt": "ISO", "updatedAt": "ISO",
+  "hidden": false, "hiddenReason": null, "hiddenAt": null, "hiddenBy": null,
+  "flagged": true,
+  "event": { "_id": "…", "name": "…" },
+  "author": { "_id": "…", "name": "Ana Mora", "username": "ana.mora" }
+}
+```
+
+- **`flagged` ("Para revisar")**: comentarios **visibles** que el filtro de palabras marcó (insultos o enlaces como `http` y `www.`). El filtro **no oculta** nada solo: lo decide el Super Admin. La lista de palabras va en la configuración del backend.
+- Ocultar pide un **motivo** (de 3 a 200 caracteres) que se le muestra al autor → si falta, `400 VALIDATION_ERROR` con `details.reason`.
+- **No se borra** nada: se guardan `hiddenReason`, `hiddenAt` y `hiddenBy` (en la respuesta, `hiddenBy` es el nombre de quien la ocultó). Al volver a mostrarla se limpian esos campos.
+- Al ocultar o mostrar, hay que recalcular `ratingAvg` y `ratingCount` del evento.
+- Ordenadas por la última acción: `hiddenAt` o, si no hay, `createdAt` (la más reciente primero).
+
+Errores: `400 VALIDATION_ERROR` · `404 REVIEW_NOT_FOUND`.
+
+---
+
 ## 3. Endpoints que el frontend VA a necesitar (propuesta)
 
 Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del documento de división de tareas (sección 11). **Son propuestas:** si el backend prefiere otra forma, avisen antes de programarla.
@@ -814,16 +1018,13 @@ Estas pantallas todavía no están conectadas. Las rutas siguen la propuesta del
 | `POST` | `/auth/logout` | Invalida el refresh token. | `204` |
 | `GET` | `/auth/google` | Redirige a Google. | `302` |
 | `GET` | `/auth/google/callback` | Redirige al frontend con la sesión iniciada. | `302` a `FRONTEND_URL/...` |
-| `POST` | `/auth/verify-email` | `{ token }` (viene del enlace del correo). | `200` |
-| `POST` | `/auth/resend-verification` | `{ email }` | `204` |
-| `POST` | `/auth/forgot-password` | `{ email }`. Responder **siempre 204** (no revelar si el correo existe). | `204` |
-| `POST` | `/auth/reset-password` | `{ token, password }` | `200` |
+| ~~`POST`~~ | ~~`/auth/verify-email`~~, ~~`/auth/resend-verification`~~, ~~`/auth/forgot-password`~~, ~~`/auth/reset-password`~~ | **Ya definidos** en la sección 2.17 (también la invitación y `GET /auth/reset-password/check`). | |
 | ~~`GET`~~ / ~~`PATCH`~~ | ~~`/me`~~ | **Ya definidos** en la sección 2.14 (`GET /auth/me`, `PATCH /me`, `POST /me/password`). | |
 
 Por decidir entre los dos:
 
 - **Dónde va el refresh token.** Recomendado: cookie `httpOnly`, `Secure`, `SameSite=Lax`. El `accessToken` lo guarda el frontend solo en memoria.
-- **Rutas del frontend a las que apuntan los enlaces de los correos:** `/verificar-correo?token=...` y `/restablecer-contrasena?token=...`.
+- **Rutas del frontend a las que apuntan los enlaces de los correos:** ver la tabla de la sección 2.17.
 - **Tipos de usuario:** solo se registran **Clientes** (`attendee`). El **Administrador** (dueño del sistema, todos los permisos) se crea con el seed. El **Organizador** existe pero solo lo asigna el Admin (ver la guía de base de datos, sección 3.8).
 
 ### 3.2 Reservaciones y entradas (Persona 3)
@@ -841,25 +1042,15 @@ Por decidir entre los dos:
 
 ### 3.4 Comentarios y calificaciones (Persona 3)
 
-| Método | Ruta | Notas |
-|---|---|---|
-| `GET` | `/events/:id/reviews?page=&limit=` | Paginado. Solo visibles (`hidden: false`). Cada review con `user: { _id, name }`. |
-| `POST` | `/events/:id/reviews` | `{ rating: 1-5, comment }`. Solo con reservación **confirmada** del evento y una por usuario. Error `REVIEW_NOT_ALLOWED` o `REVIEW_ALREADY_EXISTS`. |
-| `PATCH` / `DELETE` | `/reviews/:id` | Solo el autor. |
+**Ya definidos** en la sección 2.18 (y la moderación en la 2.22).
 
 ### 3.5 Administración (Persona 2, con consultas de Persona 3)
 
-| Método | Ruta | Notas |
-|---|---|---|
-| `GET` | `/admin/stats` | Totales generales: usuarios, organizadores, eventos por estado, reservaciones. |
-| `GET` | `/admin/users?q=&role=&page=&limit=` | Paginado. |
-| `PATCH` | `/admin/users/:id` | `{ role?, status? }` (activar o desactivar). |
-| `GET`, `POST`, `PATCH`, `DELETE` | `/admin/categories[/:id]` | CRUD de categorías. |
-| `PATCH` | `/admin/reviews/:id` | `{ hidden: true }` para moderar. |
+**Ya definidos:** cuentas y permisos (2.16), estadísticas generales (2.20), categorías (2.21) y moderación de comentarios (2.22).
 
 ### 3.6 Reportes (Persona 4)
 
-El equipo decidió **no** mostrar botones de reportes en el frontend. Igual hay que poder demostrar en la defensa la llamada **Express → API Gateway → Lambda** (RC-02) y el cron (RC-04). Si más adelante se necesita una pantalla, la ruta propuesta es `POST /reports` → `{ reportId, status }` y `GET /reports/:id` → `{ status, downloadUrl }`.
+**Ya definidos** en la sección 2.19: el frontend tiene el botón **Descargar reporte** (CSV y PDF), que es la forma de demostrar en la defensa la llamada **Express → API Gateway → Lambda → S3** (RC-02). El cron (RC-04) sigue siendo solo del backend.
 
 ---
 
@@ -882,6 +1073,12 @@ El equipo decidió **no** mostrar botones de reportes en el frontend. Igual hay 
 | 409 | `EVENT_INCOMPLETE`, `EVENT_NOT_EDITABLE`, `EVENT_NOT_DRAFT`, `EVENT_NOT_DELETABLE`, `EVENT_NOT_CANCELLABLE` | Gestión de eventos (sección 2.11). |
 | 429 | `RESEND_TOO_SOON` | Reenvío de entradas repetido en menos de un minuto. |
 | 409 | `EMAIL_TAKEN` | Registro con un correo existente. |
+| 400 | `TOKEN_INVALID`, `TOKEN_USED`, `TOKEN_EXPIRED` | Enlaces de recuperación, verificación e invitación (sección 2.17). |
+| 403 | `REVIEW_NOT_ALLOWED` | Calificar sin haber tenido entrada o antes del evento (sección 2.18). |
+| 404 | `REVIEW_NOT_FOUND`, `REPORT_NOT_FOUND`, `CATEGORY_NOT_FOUND` | No existe o no es de quien lo pide. |
+| 409 | `REVIEW_EXISTS`, `REVIEW_HIDDEN` | Reseñas (sección 2.18). |
+| 409 | `CATEGORY_IN_USE` | Eliminar una categoría que usan eventos (sección 2.21). |
+| 403 | `LINK_EXPIRED` | URL de un reporte vencida (sección 2.19). |
 | 429 | `TOO_MANY_REQUESTS` | Rate limit (login, recuperación). |
 | 500 | `INTERNAL_ERROR` | Error inesperado; mensaje genérico. |
 
@@ -917,6 +1114,11 @@ Si quieren ver cómo se comporta un endpoint (por ejemplo la búsqueda con `didY
 - [ ] Validación en la puerta (sección 2.13): firma del QR, operación atómica, deshacer en 2 minutos y `validatedBy`/`gate`.
 - [ ] Inicio del cliente (sección 2.15): `GET /me/feed`, `GET /events?sort=popular` y registrar `eventUpdates` al cambiar o cancelar un evento publicado.
 - [ ] Cuentas y permisos (sección 2.16): crear cuentas con invitación por correo, permisos ajustados por cuenta y revisar **permisos** (no solo el rol) en cada endpoint.
+- [ ] Recuperar contraseña, verificar correo e invitaciones (sección 2.17): tokens de un solo uso guardados como hash, vencimientos y cierre de sesiones al cambiar la contraseña.
+- [ ] Reseñas (sección 2.18): solo quien asistió, una por evento, y recalcular `ratingAvg` / `ratingCount`.
+- [ ] Reportes (sección 2.19): `POST /reports` → Lambda → S3 y URL firmada de 15 minutos.
+- [ ] Super Admin: estadísticas (2.20), categorías (2.21) y moderación con motivo (2.22).
+- [ ] `GET /events?sort=price_asc|price_desc` (sección 2.2).
 - [ ] Webhook de la pasarela de pago. **No guardar datos de tarjeta**, solo `paymentRef`.
 - [ ] Endpoints de la sección 3 acordados con el frontend antes de programarlos.
 - [ ] Documentación OpenAPI/Swagger/Scalar generada a partir de este contrato.

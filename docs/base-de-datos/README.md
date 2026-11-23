@@ -1,7 +1,7 @@
 # EventHub · Base de datos y modelos (MongoDB + Mongoose)
 
 > **Para:** Persona 2 (User y seguridad), Persona 3 (modelos de negocio), Persona 4 (lo que leen Lambda y el cron).
-> **Mantiene:** Persona 1 (Frontend), como guía de lo que el frontend necesita. Última actualización: 20 de noviembre de 2026.
+> **Mantiene:** Persona 1 (Frontend), como guía de lo que el frontend necesita. Última actualización: 23 de noviembre de 2026.
 
 Esta guía describe las **colecciones, campos, relaciones, índices y reglas** que necesita EventHub para que el frontend funcione tal como está construido. Los nombres de campos coinciden con los que el frontend lee (ver [`frontend/app/types/models.ts`](../../frontend/app/types/models.ts)) y con el contrato de la API ([`docs/api/README.md`](../api/README.md)).
 
@@ -14,7 +14,7 @@ Esta guía describe las **colecciones, campos, relaciones, índices y reglas** q
 1. [Diagrama de relaciones](#1-diagrama-de-relaciones)
 2. [Convenciones](#2-convenciones)
 3. [Colecciones](#3-colecciones)
-   - [users](#31-users) · [categories](#32-categories) · [events](#33-events) · [reservations](#34-reservations) · [tickets](#35-tickets) · [reviews](#36-reviews) · [seguridad](#37-colecciones-de-seguridad-persona-2) · [roles y permisos](#38-roles-y-permisos)
+   - [users](#31-users) · [categories](#32-categories) · [events](#33-events) · [reservations](#34-reservations) · [tickets](#35-tickets) · [reviews](#36-reviews) · [seguridad](#37-colecciones-de-seguridad-persona-2) · [roles y permisos](#38-roles-y-permisos) · [eventUpdates](#39-eventupdates) · [reports](#310-reports)
 4. [Reglas de negocio que dependen de la base de datos](#4-reglas-de-negocio-que-dependen-de-la-base-de-datos)
 5. [Consultas que el frontend necesita](#5-consultas-que-el-frontend-necesita)
 6. [Datos de prueba (seed)](#6-datos-de-prueba-seed)
@@ -114,7 +114,9 @@ Perfil **completo** del usuario. Además de identificarlo, son los datos que la 
 | `slug` | String | ✓ | **único**, minúscula, sin tildes ni espacios: `gastronomia`. Se usa en las URLs. |
 | `order` | Number | — | Opcional, para ordenar en la interfaz. |
 
-**Índices:** `{ slug: 1 }` único · `{ name: 1 }` único.
+**Índices:** `{ slug: 1 }` único · `{ name: 1 }` único (con *collation* que ignore mayúsculas y tildes).
+
+**Reglas (Super Admin, API sección 2.21):** el `slug` se arma a partir del nombre (minúsculas, sin tildes, con guiones) y **cambia si cambia el nombre**. Una categoría solo se elimina si **ningún evento** la usa (`409 CATEGORY_IN_USE`).
 
 **Categorías que usa el frontend hoy** (los slugs tienen colores asignados en el frontend; si agregan otra, se ve con un color neutro):
 
@@ -250,13 +252,21 @@ Comentarios y calificaciones (RF-07).
 | `event` | ObjectId → `Event` | ✓ | |
 | `user` | ObjectId → `User` | ✓ | |
 | `rating` | Number | ✓ | Entero 1–5. |
-| `comment` | String | — | Máximo 1000 caracteres. |
-| `hidden` | Boolean | ✓ | Por defecto `false`. `true` = moderado por un admin (no se muestra ni cuenta en el promedio). |
-| `createdAt` / `updatedAt` | Date | ✓ | timestamps. |
+| `comment` | String | ✓ | De 10 a 1000 caracteres. |
+| `hidden` | Boolean | ✓ | Por defecto `false`. `true` = moderado por el Super Admin (no se muestra ni cuenta en el promedio). **No se borra.** |
+| `hiddenReason` | String \| null | — | Motivo de la moderación (3–200 caracteres). Se le muestra al autor. |
+| `hiddenAt` | Date \| null | — | Cuándo se ocultó. |
+| `hiddenBy` | ObjectId → `User` \| null | — | Super Admin que la ocultó. |
+| `createdAt` / `updatedAt` | Date | ✓ | timestamps. `updatedAt ≠ createdAt` se muestra como "editada". |
 
-**Índices:** `{ event: 1, user: 1 }` **único** (una reseña por persona y evento) · `{ event: 1, hidden: 1, createdAt: -1 }`.
+**Índices:** `{ event: 1, user: 1 }` **único** (una reseña por persona y evento) · `{ event: 1, hidden: 1, createdAt: -1 }` · `{ hidden: 1, hiddenAt: -1 }` (moderación).
 
-**Regla:** solo puede reseñar quien tenga una reservación `confirmed` de ese evento. Falta decidir si además el evento debe haber terminado.
+**Reglas (API secciones 2.18 y 2.22):**
+
+- Solo puede reseñar quien tenga una reservación `confirmed` de ese evento, y **después de la hora de inicio** del evento.
+- El autor puede editarla o borrarla; si está oculta, no puede editarla.
+- Al crear, editar, borrar, ocultar o mostrar una reseña se recalculan `ratingAvg` y `ratingCount` del evento.
+- "Para revisar" (moderación) **no es un campo**: se calcula con una lista de palabras (insultos y enlaces) sobre las reseñas visibles.
 
 ---
 
@@ -268,7 +278,7 @@ No las muestra el frontend, pero son necesarias para RF-01, RF-02 y la sección 
 |---|---|---|
 | `sessions` (o `refreshtokens`) | `user`, `tokenHash`, `ip`, `userAgent`, `expiresAt`, `revokedAt`, `createdAt` | Guardar el **hash** del token, nunca el token. Índice TTL en `expiresAt`. El logout llena `revokedAt`; cambiar la contraseña lo llena en **todas las demás** sesiones del usuario. |
 | `accessLogs` | `user` (o `null` si no existe), `identifier` (usuario o correo que se intentó), `success`, `reason` (`ok` \| `invalid_credentials` \| `disabled` \| `rate_limited`), `ip`, `userAgent`, `createdAt` | Registro de **todos** los intentos de ingreso. Sirve para auditoría y para el límite de intentos: **5 fallidos en 15 minutos** por identificador → `429`. Índice `{ identifier: 1, createdAt: -1 }` y TTL opcional (por ejemplo 90 días). |
-| `emailtokens` | `user`, `type` (`verify_email` \| `reset_password`), `tokenHash`, `expiresAt`, `usedAt` | Un solo uso y con expiración. Índice TTL en `expiresAt`. |
+| `emailtokens` | `user`, `type` (`verify` \| `reset` \| `invite`), `tokenHash`, `expiresAt`, `usedAt`, `createdAt` | Un solo uso y con expiración: `reset` 30 min, `verify` 24 h, `invite` 48 h (API sección 2.17). Guardar solo el **hash** (SHA-256) del token. Al crear uno nuevo, marcar como usados los anteriores del mismo `user` y `type`. Índices `{ tokenHash: 1 }` único y TTL en `expiresAt`. |
 
 ### 3.8 `roles` y permisos
 
@@ -326,6 +336,28 @@ Historial de cambios importantes de eventos **publicados**. Alimenta las "Noveda
 | `createdAt` | Date | ✓ | |
 
 **Índices:** `{ event: 1, createdAt: -1 }`. Pueden borrarse a los 90 días (índice TTL en `createdAt`).
+
+---
+
+### 3.10 `reports`
+
+Pedidos de reportes descargables (API sección 2.19). El archivo **no** se guarda en Mongo: la Lambda lo sube a **S3** y acá queda solo la ruta.
+
+| Campo | Tipo | Requerido | Notas |
+|---|---|---|---|
+| `_id` | ObjectId | ✓ | |
+| `owner` | ObjectId → `User` | ✓ | Quien lo pidió. Solo esa persona lo puede consultar. |
+| `type` | String enum | ✓ | `organizer-summary` \| `event-reservations`. |
+| `format` | String enum | ✓ | `csv` \| `pdf`. |
+| `event` | ObjectId → `Event` \| null | — | Solo `event-reservations`. |
+| `period` | Number \| null | — | Solo `organizer-summary`: 7, 30 o 90 días. |
+| `title` | String | ✓ | Por ejemplo "Reservaciones de Festival de rock en Pedregal". |
+| `status` | String enum | ✓ | `processing` \| `ready` \| `failed`. |
+| `s3Key` | String \| null | — | Ruta del archivo en S3 cuando está `ready`. La URL firmada (15 min) se genera en cada `GET /reports/:id`, no se guarda. |
+| `error` | String \| null | — | Motivo si `failed`. |
+| `createdAt` / `updatedAt` | Date | ✓ | timestamps. |
+
+**Índices:** `{ owner: 1, createdAt: -1 }`. Pueden borrarse a los 30 días (TTL en `createdAt`, y una regla de ciclo de vida en el bucket de S3).
 
 ---
 
@@ -394,6 +426,12 @@ La puede cancelar **el cliente** (desde Mis entradas), **el organizador** del ev
 | Reservaciones (organizador) | `GET /organizer/reservations` | `find({ event: { $in: idsDelOrganizador } })` + `populate('user', 'name email')` + `$facet` con conteos por estado y el resumen (vendidas, ingresos, ingresaron). Búsqueda por nombre, correo y código (sección 2.12). |
 | Validar entradas | `GET /organizer/checkin` | `countDocuments({ event, status: { $ne: 'cancelled' } })`, `countDocuments({ event, status: 'used' })` y `find({ event, status: 'used' }).sort({ usedAt: -1 }).limit(15)` + populate del titular. |
 | Mis entradas · Esperando pago | `GET /me/reservations?status=pending` | `find({ user, status: 'pending' })` + populate del evento. |
+| Buscar · Ordenar por precio | `GET /events?sort=price_asc\|price_desc` | Igual que el catálogo con `sort({ price: 1 \| -1, date: 1 })`. |
+| Detalle · Reseñas | `GET /events/:id/reviews` | `find({ event, hidden: false, user: { $ne: yo } })` + `sort` (`createdAt: -1` o `rating`) + `skip/limit`; resumen con `aggregate([{ $match: { event, hidden: false } }, { $group: { _id: '$rating', n: { $sum: 1 } } }])`; ¿puede calificar? = `Reservation.exists({ event, user, status: 'confirmed' })` y `event.date <= ahora`. |
+| Reportes | `POST /reports` | Crea el documento `reports` y llama a la Lambda (API Gateway) con `{ reportId }`. La Lambda lee `reservations` o `events` con las mismas consultas del panel, sube el archivo a S3 y marca `ready`. |
+| Resumen general (Super Admin) | `GET /admin/stats` | `countDocuments` de `users` por `role`/`accountType`, `events` por `status`, y `aggregate` sobre `reservations` `confirmed` agrupadas por periodo, por evento y por organizador (`$lookup` a `events`). |
+| Categorías (Super Admin) | `GET /admin/categories` | `aggregate` de `events` agrupado por `category` (total y publicados) unido a `categories`. |
+| Moderación | `GET /admin/reviews` | `find` por `hidden` + búsqueda en `comment` y nombres (`$lookup` a `events` y `users`), ordenado por `hiddenAt`/`createdAt`; `counts` con `$facet`. |
 
 ---
 
@@ -440,7 +478,7 @@ Ejemplo de documento `events` tal como lo guardaría Mongo:
 | 2 | ~~Al cancelar un evento, ¿se cancelan las reservaciones?~~ **Decidido:** sí, todas (`pending` y `confirmed`) con `cancelledBy: 'organizer'`, y sus entradas. | `events`, `reservations`, `tickets` |
 | 3 | ¿Quién marca los eventos como `finished` (cron o backend)? | `events`, Persona 4 |
 | 4 | ¿Un usuario puede tener varias reservaciones del mismo evento? | Índice de `reservations` |
-| 5 | ¿Se puede reseñar antes de que termine el evento? | `reviews` |
+| 5 | ~~¿Se puede reseñar antes de que termine el evento?~~ **Decidido:** desde la hora de inicio del evento, solo quien tuvo una reservación confirmada, una reseña por persona. | `reviews` |
 | 6 | Máximo de entradas por compra (hoy 10) o por persona. | `reservations`, validación |
 | 7 | Búsqueda: índice de texto o Atlas Search (para "¿Quisiste decir…?"). | `events` |
 | 8 | Formato del `qrValue` (JWT u HMAC) y su secreto. | `tickets` |
